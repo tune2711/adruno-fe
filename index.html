@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cửa Hàng Ăn Đêm</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.8.2"
+  }
+}
+</script>
+<style>
+  body {
+    font-family: 'Be Vietnam Pro', sans-serif;
+  }
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out forwards;
+  }
+  @keyframes overlayFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .animate-overlay-fade-in {
+    animation: overlayFadeIn 0.2s ease-out forwards;
+  }
+  
+  /* --- Logout Effect Styles --- */
+  .spinner {
+    animation: rotate 1.4s linear infinite;
+  }
+
+  .spinner .path {
+    stroke: #f97316; /* orange-500 */
+    stroke-linecap: round;
+    animation: dash 1.8s ease-in-out infinite;
+  }
+
+  @keyframes rotate {
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes dash {
+    0% {
+      stroke-dasharray: 1, 200;
+      stroke-dashoffset: 0;
+    }
+    50% {
+      stroke-dasharray: 100, 200;
+      stroke-dashoffset: -35px;
+    }
+    100% {
+      stroke-dasharray: 100, 200;
+      stroke-dashoffset: -124px;
+    }
+  }
+
+  @keyframes logout-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.95) translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+  .animate-logout-pop {
+    animation: logout-pop 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  }
+</style>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="bg-slate-50">
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

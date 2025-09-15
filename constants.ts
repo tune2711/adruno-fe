@@ -1,0 +1,76 @@
+import { Product } from './types';
+
+export const PRODUCTS: Product[] = [
+  {
+    id: 1,
+    name: "Mì xào trứng",
+    price: 35000,
+    description: "Mì gói xào với trứng, hành lá và gia vị đậm đà.",
+    imageUrl: "https://cdn2.fptshop.com.vn/unsafe/1920x0/filters:format(webp):quality(75)/2023_12_12_638379714166884908_cach-lam-mi-xao-trung.jpg",
+    category: "Món chính",
+  },
+  {
+    id: 2,
+    name: "Cơm rang dưa bò",
+    price: 45000,
+    description: "Cơm rang thơm lừng với thịt bò mềm và dưa cải chua.",
+    imageUrl: "https://i-giadinh.vnecdn.net/2023/10/17/Buoc-8-Thanh-pham-1-8-2323-1697527935.jpg",
+    category: "Món chính",
+  },
+  {
+    id: 3,
+    name: "Chân gà sả tắc",
+    price: 50000,
+    description: "Chân gà giòn sần sật ngâm sả tắc chua cay.",
+    imageUrl: "https://file.hstatic.net/200000700229/article/lam-chan-ga-ngam-sa-tac-xoai-thumb_dafa66b5c7044a26bf70955c9c8f5ce6.jpg",
+    category: "Món ăn vặt",
+  },
+  {
+    id: 4,
+    name: "Xôi xéo",
+    price: 25000,
+    description: "Xôi dẻo thơm với đỗ xanh, hành phi và mỡ hành.",
+    imageUrl: "https://statics.vinwonders.com/xoi-xeo-01%20(2)_1632322118.jpg",
+    category: "Món chính",
+  },
+  {
+    id: 5,
+    name: "Bánh mì que",
+    price: 15000,
+    description: "Bánh mì giòn tan với pate cay đặc trưng.",
+    imageUrl: "https://daylambanh.edu.vn/wp-content/uploads/2019/09/banh-mi-que-nho-xinh-600x400.jpg",
+    category: "Món ăn vặt",
+  },
+  {
+    id: 6,
+    name: "Trà tắc",
+    price: 15000,
+    description: "Thức uống giải nhiệt sảng khoái từ trà và tắc tươi.",
+    imageUrl: "https://tiki.vn/blog/wp-content/uploads/2023/10/tra-tac-2.jpg",
+    category: "Đồ uống",
+  },
+    {
+    id: 7,
+    name: "Phở cuốn",
+    price: 60000,
+    description: "Bánh phở mềm cuốn thịt bò xào và rau thơm, chấm nước mắm chua ngọt.",
+    imageUrl: "https://golook.vn/blog/wp-content/uploads/2024/09/cach-lam-mon-pho-cuon-thit-bo-1-1.png",
+    category: "Món ăn vặt",
+  },
+  {
+    id: 8,
+    name: "Nem chua rán",
+    price: 40000,
+    description: "Nem chua rán giòn rụm, béo ngậy, ăn kèm tương ớt.",
+    imageUrl: "https://rubissdetox.vn/wp-content/uploads/2023/01/Cach-lam-nem-chua-ran-1.jpg",
+    category: "Món ăn vặt",
+  },
+  {
+    id: 9,
+    name: "Chè khúc bạch",
+    price: 25000,
+    description: "Chè thanh mát với khúc bạch phô mai, nhãn và hạnh nhân.",
+    imageUrl: "https://cdn2.fptshop.com.vn/unsafe/1920x0/filters:format(webp):quality(75)/2023_9_28_638315335535725712_che-khuc-bach-thumb.jpg",
+    category: "Tráng miệng",
+  }
+];

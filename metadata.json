@@ -1,0 +1,5 @@
+{
+  "name": "Cửa Hàng Ăn Đêm",
+  "description": "Một ứng dụng web React để đặt đồ ăn đêm, có chức năng giỏ hàng và thanh toán bằng mã QR. Lấy cảm hứng từ sự đơn giản của GS25.",
+  "requestFramePermissions": []
+}
