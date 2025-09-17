@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../hooks/useCart';
 import { useOrders } from '../hooks/useOrders';
@@ -9,6 +9,7 @@ const CheckoutPage: React.FC = () => {
   const { addOrder } = useOrders();
   const navigate = useNavigate();
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [transactionId, setTransactionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (cartItems.length === 0 && !paymentConfirmed) {
@@ -29,8 +30,35 @@ const CheckoutPage: React.FC = () => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
   };
 
-  const qrDescription = encodeURIComponent(`Thanh toan don hang ${Date.now()}`);
-  const qrCodeUrl = `https://img.vietqr.io/image/MB-0396374030-compact.png?amount=${totalPrice}&addInfo=${qrDescription}`;
+
+  // Lấy transactionId từ API khi tạo mã QR
+  const hasFetched = useRef(false);
+  useEffect(() => {
+    if (totalPrice > 0 && cartItems.length > 0 && !hasFetched.current) {
+      hasFetched.current = true;
+      fetch(`/api/Banking/create?amount=${totalPrice}`)
+        .then(async res => {
+          if (!res.ok) throw new Error('API error');
+          const data = await res.json();
+          if (data && data.transactionId) {
+            setTransactionId(data.transactionId);
+          } else {
+            setTransactionId(null);
+            console.error('No transactionId in response', data);
+          }
+        })
+        .catch((err) => {
+          setTransactionId(null);
+          console.error('QR API error:', err);
+        });
+    } else if (totalPrice === 0 || cartItems.length === 0) {
+      setTransactionId(null);
+      hasFetched.current = false;
+    }
+  }, [totalPrice, cartItems]);
+
+  const qrDescription = transactionId ? encodeURIComponent(transactionId) : '';
+  const qrCodeUrl = `https://img.vietqr.io/image/MB-0396374030-compact.png?addInfo=${qrDescription}&accountName=NGUYEN%20DUC%20TOAN${totalPrice > 0 ? `&amount=${totalPrice}` : ''}`;
 
 
   if (paymentConfirmed) {
@@ -71,16 +99,26 @@ const CheckoutPage: React.FC = () => {
         <div className="w-full md:w-1/2 bg-white p-6 rounded-lg shadow-md flex flex-col items-center">
             <h2 className="text-2xl font-semibold mb-4">Quét mã QR để thanh toán</h2>
             <p className="text-gray-600 text-center mb-4">Sử dụng ứng dụng ngân hàng hoặc ví điện tử của bạn để quét mã.</p>
-            <div className="p-4 border rounded-lg">
-                <img 
-                    src={qrCodeUrl}
-                    alt="QR Code thanh toán"
-                    className="w-64 h-64"
-                />
+      <div className="p-4 border rounded-lg">
+        {transactionId ? (
+          <>
+            <img 
+              src={qrCodeUrl}
+              alt="QR Code thanh toán"
+              className="w-64 h-64"
+            />
+            <div className="mt-4 p-2 bg-gray-100 rounded text-center break-all">
+              <span className="font-semibold text-gray-700">Mã giao dịch:</span><br />
+              <span className="text-blue-600">{transactionId}</span>
             </div>
-            <button onClick={handleConfirmPayment} className="mt-6 w-full px-6 py-3 bg-green-500 text-white font-semibold rounded-md hover:bg-green-600">
-                Xác nhận đã thanh toán
-            </button>
+          </>
+        ) : (
+          <div>Đang tạo mã QR...</div>
+        )}
+      </div>
+      <button onClick={handleConfirmPayment} className="mt-6 w-full px-6 py-3 bg-green-500 text-white font-semibold rounded-md hover:bg-green-600" disabled={!transactionId}>
+        Xác nhận đã thanh toán
+      </button>
         </div>
       </div>
     </div>

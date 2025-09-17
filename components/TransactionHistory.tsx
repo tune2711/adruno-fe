@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
 // Define the transaction type
 interface Transaction {
-  id: string;
+  transactionId: string; // Đổi tên từ id thành transactionId
   amount: number;
   description: string;
   bank: string;
@@ -15,7 +15,7 @@ interface FetchError {
   message: string;
   details: string;
 }
-const apiUrl = '/api/Transactions';
+const apiUrl = '/api/Banking/get';
 const ITEMS_PER_PAGE = 10;
 
 const formatPrice = (price: number) => {
@@ -52,7 +52,7 @@ const StatCard: React.FC<{ title: string; value: string; icon: React.Element; co
             </div>
             <div>
                 <p className="text-sm text-gray-500">{title}</p>
-                <p className={`text-xl font-bold ${styles.valueText}`}>{value}</p>
+                <p className={`font-bold ${styles.valueText}`}>{value}</p>
             </div>
         </div>
     );
@@ -163,7 +163,7 @@ const TransactionHistory: React.FC = () => {
             const lowercasedQuery = debouncedQuery.toLowerCase();
             filtered = filtered.filter(tx => 
                 tx.description.toLowerCase().includes(lowercasedQuery) ||
-                tx.id.toLowerCase().includes(lowercasedQuery)
+                tx.transactionId.toLowerCase().includes(lowercasedQuery)
             );
         }
 
@@ -188,6 +188,20 @@ const TransactionHistory: React.FC = () => {
       setDateFilter('all');
       setCurrentPage(1);
       fetchTransactions();
+    };
+
+    // Hàm xóa giao dịch sử dụng endpoint mới
+    const handleDelete = async (transactionId: string) => {
+        if (!window.confirm('Bạn có chắc chắn muốn xóa giao dịch này?')) return;
+        try {
+            const response = await fetch(`/api/Banking/delete/${transactionId}`, {
+                method: 'DELETE',
+            });
+            if (!response.ok) throw new Error('Xóa giao dịch thất bại');
+            setTransactions(prev => prev.filter(tx => tx.transactionId !== transactionId));
+        } catch (err) {
+            alert('Không thể xóa giao dịch. Vui lòng thử lại!');
+        }
     };
 
     const renderContent = () => {
@@ -226,7 +240,7 @@ const TransactionHistory: React.FC = () => {
             return (
                 <div className="text-center py-16 animate-fade-in">
                     <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 002 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 002 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2H5a2 2 0 00-2 2v2M7 7h10" />
                     </svg>
                     <h2 className="mt-4 text-xl font-semibold text-gray-700">Không có giao dịch nào</h2>
                     <p className="mt-2 text-gray-500">Chưa có giao dịch nào được ghi nhận.</p>
@@ -245,16 +259,26 @@ const TransactionHistory: React.FC = () => {
                                 <th className="p-3 font-semibold text-sm text-gray-600 uppercase">Mô tả</th>
                                 <th className="p-3 font-semibold text-sm text-gray-600 uppercase hidden md:table-cell">Ngân hàng</th>
                                 <th className="p-3 font-semibold text-sm text-gray-600 uppercase hidden lg:table-cell">ID Giao dịch</th>
+                                <th className="p-3 font-semibold text-sm text-gray-600 uppercase">Xóa</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
                             {paginatedTransactions.map(tx => (
-                                <tr key={tx.id} className="hover:bg-gray-50">
+                                <tr key={tx.transactionId} className="hover:bg-gray-50">
                                     <td className="p-3 text-gray-600 whitespace-nowrap">{formatDate(tx.timestamp)}</td>
                                     <td className="p-3 text-green-600 font-semibold whitespace-nowrap">{formatPrice(tx.amount)}</td>
                                     <td className="p-3 text-gray-800 font-medium">{tx.description}</td>
                                     <td className="p-3 text-gray-600 hidden md:table-cell">{tx.bank}</td>
-                                    <td className="p-3 font-mono text-xs text-gray-500 break-all hidden lg:table-cell">{tx.id}</td>
+                                    <td className="p-3 font-mono text-gray-500 break-all hidden lg:table-cell text-base font-semibold">{tx.transactionId}</td>
+                                    <td className="p-3">
+                                        <button
+                                            onClick={() => handleDelete(tx.transactionId)}
+                                            className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
+                                            title="Xóa giao dịch"
+                                        >
+                                            Xóa
+                                        </button>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>

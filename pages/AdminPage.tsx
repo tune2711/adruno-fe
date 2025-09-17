@@ -30,67 +30,46 @@ const StatCard: React.FC<{ title: string; value: string; icon: JSX.Element }> = 
     </div>
 );
 
+// ...existing code...
+// ...existing code...
+
 const RevenueDashboard: React.FC = () => {
-    const { orders } = useOrders();
+    const [transactions, setTransactions] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    const stats = useMemo(() => {
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    useEffect(() => {
+        fetch('/api/Banking/get')
+            .then(res => res.json())
+            .then(data => {
+                setTransactions(data);
+                setLoading(false);
+            })
+            .catch(() => setLoading(false));
+    }, []);
 
-        let dailyRevenue = 0;
-        let monthlyRevenue = 0;
-        let totalRevenue = 0;
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-        orders.forEach(order => {
-            const orderTotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-            totalRevenue += orderTotal;
-            if (order.date >= today) {
-                dailyRevenue += orderTotal;
-            }
-            if (order.date >= startOfMonth) {
-                monthlyRevenue += orderTotal;
-            }
-        });
+    let dailyRevenue = 0;
+    let monthlyRevenue = 0;
+    let totalRevenue = 0;
 
-        return { dailyRevenue, monthlyRevenue, totalRevenue };
-    }, [orders]);
-
-    const salesStats = useMemo(() => {
-        const stats: { [key: number]: { name: string; count: number } } = {};
-        orders.forEach(order => {
-            order.items.forEach(item => {
-                if (stats[item.id]) {
-                    stats[item.id].count += item.quantity;
-                } else {
-                    stats[item.id] = { name: item.name, count: item.quantity };
-                }
-            });
-        });
-        return Object.values(stats).sort((a, b) => b.count - a.count);
-    }, [orders]);
+    transactions.forEach((tx: any) => {
+        const txDate = new Date(tx.timestamp);
+        totalRevenue += tx.amount;
+        if (txDate >= today) dailyRevenue += tx.amount;
+        if (txDate >= startOfMonth) monthlyRevenue += tx.amount;
+    });
 
     return (
         <div className="animate-fade-in">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <StatCard title="Doanh thu hôm nay" value={formatPrice(stats.dailyRevenue)} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
-                <StatCard title="Doanh thu tháng này" value={formatPrice(stats.monthlyRevenue)} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
-                <StatCard title="Tổng doanh thu" value={formatPrice(stats.totalRevenue)} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>} />
+                <StatCard title="Doanh thu hôm nay" value={formatPrice(dailyRevenue)} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} />
+                <StatCard title="Doanh thu tháng này" value={formatPrice(monthlyRevenue)} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
+                <StatCard title="Tổng doanh thu" value={formatPrice(totalRevenue)} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>} />
             </div>
-            <div className="bg-white p-6 rounded-lg shadow-md">
-                <h2 className="text-xl font-bold text-gray-800 mb-4">Món ăn bán chạy nhất</h2>
-                {salesStats.length > 0 ? (
-                    <ol className="list-decimal list-inside space-y-3 text-gray-700">
-                        {salesStats.slice(0, 5).map((item) => (
-                            <li key={item.name}>
-                                <span className="font-semibold">{item.name}</span> - đã bán: <span className="font-bold text-orange-600">{item.count}</span>
-                            </li>
-                        ))}
-                    </ol>
-                ) : (
-                    <p className="text-gray-500">Chưa có dữ liệu bán hàng.</p>
-                )}
-            </div>
+            {/* ...giữ nguyên phần món ăn bán chạy nhất nếu cần... */}
         </div>
     );
 };
@@ -250,14 +229,18 @@ const UserManagement: React.FC = () => {
     const { users, addUser, deleteUser, user: currentUser, updateUserRole } = useAuth();
     const [email, setEmail] = useState('');
     const [role, setRole] = useState<'staff' | 'manager'>('staff');
+    const [password, setPassword] = useState('');
     const [userToChangePassword, setUserToChangePassword] = useState<User | null>(null);
 
     const handleAddUser = (e: React.FormEvent) => {
         e.preventDefault();
-        if (email.trim()) {
-            addUser(email.trim(), role);
-            setEmail('');
+        if (!email.trim() || !password.trim()) {
+            alert('Vui lòng nhập đầy đủ email và mật khẩu.');
+            return;
         }
+        addUser(email.trim(), role, password.trim());
+        setEmail('');
+        setPassword('');
     };
     
     const manageableUsers = users.filter(u => u.role !== 'admin');
@@ -275,6 +258,18 @@ const UserManagement: React.FC = () => {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="user@gmail.com"
+                            className="bg-white shadow-sm appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-orange-200"
+                            required
+                        />
+                    </div>
+                    <div className="mb-4">
+                        <label htmlFor="user-password" className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
+                        <input 
+                            type="password"
+                            id="user-password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="Nhập mật khẩu"
                             className="bg-white shadow-sm appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-orange-200"
                             required
                         />
