@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
 // Define the transaction type
 interface Transaction {
-  transactionId: string; // Đổi tên từ id thành transactionId
+  transactionId: string; 
   amount: number;
   description: string;
   bank: string;
@@ -15,7 +15,8 @@ interface FetchError {
   message: string;
   details: string;
 }
-const apiUrl = '/api/Banking/get'; // Thay đổi API endpoint
+
+const API_BASE_URL = '/api/Banking'; // Define base URL for the API
 const ITEMS_PER_PAGE = 10;
 
 const formatPrice = (price: number) => {
@@ -58,23 +59,20 @@ const StatCard: React.FC<{ title: string; value: string; icon: React.ReactElemen
     );
 };
 
-
 const TransactionHistory: React.FC = () => {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<FetchError | null>(null);
     
-    // Filtering and Pagination state
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
-    const [dateFilter, setDateFilter] = useState('all'); // 'all', 'today', 'week', 'month'
+    const [dateFilter, setDateFilter] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
 
-    // Debounce search input
     useEffect(() => {
         const handler = setTimeout(() => {
             setDebouncedQuery(searchQuery);
-            setCurrentPage(1); // Reset to first page on new search
+            setCurrentPage(1);
         }, 300);
         return () => clearTimeout(handler);
     }, [searchQuery]);
@@ -83,7 +81,7 @@ const TransactionHistory: React.FC = () => {
         setLoading(true);
         setError(null);
         try {
-            const response = await fetch(apiUrl, {
+            const response = await fetch(`${API_BASE_URL}/get`, {
                 method: 'GET',
                 headers: { 'Accept': 'application/json' },
                 cache: 'no-cache',
@@ -91,9 +89,9 @@ const TransactionHistory: React.FC = () => {
     
             if (!response.ok) {
                 const errorText = await response.text();
-                 let detailMessage = `Phản hồi từ máy chủ: ${errorText.substring(0, 300)}`;
+                let detailMessage = `Phản hồi từ máy chủ: ${errorText.substring(0, 300)}`;
                 if (errorText.trim().startsWith('<!DOCTYPE html>')) {
-                    detailMessage = "Máy chủ đã trả về một trang HTML thay vì dữ liệu JSON. Đây có thể là một trang lỗi hoặc trang xác thực.";
+                    detailMessage = "Máy chủ đã trả về một trang HTML thay vì dữ liệu JSON.";
                 }
                 throw new Error(`Lỗi HTTP: ${response.status} ${response.statusText}. ${detailMessage}`);
             }
@@ -103,22 +101,16 @@ const TransactionHistory: React.FC = () => {
         } catch (err: any) {
             let detailedError: FetchError = {
                 title: 'Đã xảy ra lỗi!',
-                message: 'Không thể tải lịch sử giao dịch. Vui lòng thử lại sau.',
+                message: 'Không thể tải lịch sử giao dịch.',
                 details: ''
             };
-            if (err instanceof SyntaxError) { // Xử lý lỗi JSON
+            if (err instanceof SyntaxError) {
                  detailedError.title = 'Lỗi Dữ liệu Trả về';
-                 detailedError.message = 'Máy chủ đã trả về dữ liệu không hợp lệ (không phải JSON). Điều này thường xảy ra khi API endpoint không chính xác.';
-                 detailedError.details = `URL được yêu cầu: <code>${apiUrl}</code>. Vui lòng kiểm tra lại cấu hình proxy và API endpoint.`;
+                 detailedError.message = 'Máy chủ trả về dữ liệu không hợp lệ (không phải JSON).';
+                 detailedError.details = `URL: <code>${API_BASE_URL}/get</code>.`;
             } else if (err instanceof TypeError && err.message.toLowerCase().includes('failed to fetch')) {
                  detailedError.title = 'Lỗi kết nối hoặc CORS';
-                 detailedError.message = 'Không thể kết nối đến máy chủ API. Các nguyên nhân phổ biến bao gồm:';
-                 detailedError.details = `
-                    <ul class="list-disc list-inside mt-2 text-sm text-red-800 space-y-1">
-                        <li><b>Lỗi CORS:</b> Máy chủ API cần được cấu hình để cho phép các yêu cầu từ trang web này.</li>
-                        <li><b>Lỗi mạng:</b> Vui lòng kiểm tra kết nối internet của bạn.</li>
-                        <li><b>API không hoạt động:</b> Máy chủ API có thể đang ngoại tuyến hoặc địa chỉ không chính xác.</li>
-                    </ul>`;
+                 detailedError.message = 'Không thể kết nối đến máy chủ API.';
             } else if (err instanceof Error) {
                 detailedError.message = err.message;
             }
@@ -136,7 +128,6 @@ const TransactionHistory: React.FC = () => {
     const filteredTransactions = useMemo(() => {
         let filtered = transactions;
 
-        // Date filtering
         if (dateFilter !== 'all') {
             const now = new Date();
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -153,13 +144,12 @@ const TransactionHistory: React.FC = () => {
                      startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
                     break;
                 default:
-                    startDate = new Date(0); // Epoch
+                    startDate = new Date(0);
             }
             
             filtered = filtered.filter(tx => new Date(tx.timestamp) >= startDate);
         }
         
-        // Search filtering
         if (debouncedQuery.trim()) {
             const lowercasedQuery = debouncedQuery.toLowerCase();
             filtered = filtered.filter(tx => 
@@ -177,7 +167,6 @@ const TransactionHistory: React.FC = () => {
         return { totalAmount, totalTransactions };
     }, [filteredTransactions]);
 
-    // Pagination calculations
     const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
     const paginatedTransactions = filteredTransactions.slice(
         (currentPage - 1) * ITEMS_PER_PAGE,
@@ -194,13 +183,19 @@ const TransactionHistory: React.FC = () => {
     const handleDelete = async (transactionId: string) => {
         if (!window.confirm('Bạn có chắc chắn muốn xóa giao dịch này?')) return;
         try {
-            const response = await fetch(`${apiUrl}/${transactionId}`, {
+            const response = await fetch(`${API_BASE_URL}/delete/${transactionId}`, {
                 method: 'DELETE',
             });
-            if (!response.ok) throw new Error('Xóa giao dịch thất bại');
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`Lỗi xóa giao dịch ${transactionId}:`, response.status, errorText);
+                throw new Error(`Xóa thất bại. Server: ${errorText || response.statusText}`);
+            }
             setTransactions(prev => prev.filter(tx => tx.transactionId !== transactionId));
-        } catch (err) {
-            alert('Không thể xóa giao dịch. Vui lòng thử lại!');
+            alert('Xóa giao dịch thành công!');
+        } catch (err: any) {
+            alert(`Không thể xóa giao dịch: ${err.message}`);
+            console.error(err);
         }
     };
 
@@ -284,7 +279,6 @@ const TransactionHistory: React.FC = () => {
                         </tbody>
                     </table>
                 </div>
-                {/* Pagination Controls */}
                 {totalPages > 1 && (
                     <div className="flex justify-between items-center mt-6">
                          <span className="text-sm text-gray-600">
@@ -329,7 +323,6 @@ const TransactionHistory: React.FC = () => {
                 </button>
             </div>
             
-             {/* Filters */}
             <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-2">
                     <div className="relative group">
@@ -364,7 +357,6 @@ const TransactionHistory: React.FC = () => {
                 </div>
             </div>
 
-            {/* Summary */}
             {!loading && !error && transactions.length > 0 &&
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <StatCard title="Tổng giao dịch" value={summaryStats.totalTransactions.toLocaleString('vi-VN')} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} />

@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://da13fc00cc35.ngrok-free.app',
+        target: 'https://5cc8d74a727c.ngrok-free.app',
         changeOrigin: true,
         secure: false,
         // Thêm header này để tự động bỏ qua trang cảnh báo của ngrok
