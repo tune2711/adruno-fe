@@ -1,24 +1,20 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      // Bất kỳ yêu cầu nào bắt đầu bằng '/api'
       '/api': {
-        // sẽ được chuyển tiếp đến server backend này
         target: 'https://da13fc00cc35.ngrok-free.app',
-        
-        // Cần thiết để server backend chấp nhận yêu cầu
         changeOrigin: true,
-        
-        // Hữu ích cho các kết nối https
-        secure: false
-        
-        // Bỏ hoàn toàn dòng "rewrite" phức tạp đi
-      }
-    }
-  }
-})
+        secure: false,
+        // Thêm header này để tự động bỏ qua trang cảnh báo của ngrok
+        headers: {
+          'ngrok-skip-browser-warning': 'true'
+        }
+      },
+    },
+  },
+});

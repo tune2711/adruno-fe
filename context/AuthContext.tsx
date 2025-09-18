@@ -105,16 +105,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, role: 'customer' }), // Đã thêm role: 'customer'
       });
 
       if (response.ok) {
         alert('Đăng ký thành công! Vui lòng đăng nhập.');
-        // You might want to automatically log in the user here as well
         return true;
       } else {
         const errorData = await response.json();
-        alert(errorData.message || 'Đăng ký không thành công.');
+        // Cố gắng hiển thị lỗi cụ thể từ server, nếu không thì hiển thị lỗi chung
+        const message = errorData.errors ? Object.values(errorData.errors).flat().join(' ') : (errorData.message || 'Đăng ký không thành công.');
+        alert(message);
         return false;
       }
     } catch (error) {
