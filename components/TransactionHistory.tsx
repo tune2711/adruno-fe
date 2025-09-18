@@ -15,7 +15,7 @@ interface FetchError {
   message: string;
   details: string;
 }
-const apiUrl = '/api/Banking/get';
+const apiUrl = '/api/Banking/get'; // Thay đổi API endpoint
 const ITEMS_PER_PAGE = 10;
 
 const formatPrice = (price: number) => {
@@ -29,7 +29,7 @@ const formatDate = (dateString: string) => {
     return date.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-const StatCard: React.FC<{ title: string; value: string; icon: React.Element; color?: 'orange' | 'green' }> = ({ title, value, icon, color = 'orange' }) => {
+const StatCard: React.FC<{ title: string; value: string; icon: React.ReactElement; color?: 'orange' | 'green' }> = ({ title, value, icon, color = 'orange' }) => {
     const colorStyles = {
         orange: {
             bg: 'bg-orange-100',
@@ -83,7 +83,6 @@ const TransactionHistory: React.FC = () => {
         setLoading(true);
         setError(null);
         try {
-            // Gọi API trực tiếp không qua proxy
             const response = await fetch(apiUrl, {
                 method: 'GET',
                 headers: { 'Accept': 'application/json' },
@@ -93,7 +92,6 @@ const TransactionHistory: React.FC = () => {
             if (!response.ok) {
                 const errorText = await response.text();
                  let detailMessage = `Phản hồi từ máy chủ: ${errorText.substring(0, 300)}`;
-                // Nếu lỗi trả về là HTML (ví dụ: trang lỗi CORS hoặc Cloudflare)
                 if (errorText.trim().startsWith('<!DOCTYPE html>')) {
                     detailMessage = "Máy chủ đã trả về một trang HTML thay vì dữ liệu JSON. Đây có thể là một trang lỗi hoặc trang xác thực.";
                 }
@@ -108,13 +106,16 @@ const TransactionHistory: React.FC = () => {
                 message: 'Không thể tải lịch sử giao dịch. Vui lòng thử lại sau.',
                 details: ''
             };
-            // Lỗi "Failed to fetch" thường là do CORS hoặc lỗi mạng khi gọi trực tiếp
-            if (err instanceof TypeError && err.message.toLowerCase().includes('failed to fetch')) {
+            if (err instanceof SyntaxError) { // Xử lý lỗi JSON
+                 detailedError.title = 'Lỗi Dữ liệu Trả về';
+                 detailedError.message = 'Máy chủ đã trả về dữ liệu không hợp lệ (không phải JSON). Điều này thường xảy ra khi API endpoint không chính xác.';
+                 detailedError.details = `URL được yêu cầu: <code>${apiUrl}</code>. Vui lòng kiểm tra lại cấu hình proxy và API endpoint.`;
+            } else if (err instanceof TypeError && err.message.toLowerCase().includes('failed to fetch')) {
                  detailedError.title = 'Lỗi kết nối hoặc CORS';
                  detailedError.message = 'Không thể kết nối đến máy chủ API. Các nguyên nhân phổ biến bao gồm:';
                  detailedError.details = `
                     <ul class="list-disc list-inside mt-2 text-sm text-red-800 space-y-1">
-                        <li><b>Lỗi CORS:</b> Máy chủ API tại <code>${apiUrl}</code> cần được cấu hình để cho phép các yêu cầu từ trang web này.</li>
+                        <li><b>Lỗi CORS:</b> Máy chủ API cần được cấu hình để cho phép các yêu cầu từ trang web này.</li>
                         <li><b>Lỗi mạng:</b> Vui lòng kiểm tra kết nối internet của bạn.</li>
                         <li><b>API không hoạt động:</b> Máy chủ API có thể đang ngoại tuyến hoặc địa chỉ không chính xác.</li>
                     </ul>`;
@@ -190,11 +191,10 @@ const TransactionHistory: React.FC = () => {
       fetchTransactions();
     };
 
-    // Hàm xóa giao dịch sử dụng endpoint mới
     const handleDelete = async (transactionId: string) => {
         if (!window.confirm('Bạn có chắc chắn muốn xóa giao dịch này?')) return;
         try {
-            const response = await fetch(`/api/Banking/delete/${transactionId}`, {
+            const response = await fetch(`${apiUrl}/${transactionId}`, {
                 method: 'DELETE',
             });
             if (!response.ok) throw new Error('Xóa giao dịch thất bại');

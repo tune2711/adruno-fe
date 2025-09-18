@@ -7,6 +7,7 @@ import { LOGO_URL } from '../assets';
 
 const Header: React.FC = () => {
   const { isAuthenticated, user, logout } = useAuth();
+  console.log('User object in Header:', user);
   const { totalItems } = useCart();
   const navigate = useNavigate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -19,6 +20,8 @@ const Header: React.FC = () => {
       setIsLoggingOut(false);
     }, 1500);
   };
+
+  const userRole = user?.role?.toLowerCase();
 
   const AdminIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M1 18a.75.75 0 01.75-.75h16.5a.75.75 0 010 1.5H1.75A.75.75 0 011 18zM4.75 3a.75.75 0 01.75.75v11.5a.75.75 0 01-1.5 0V3.75A.75.75 0 014.75 3zM9.25 6a.75.75 0 01.75.75v8.5a.75.75 0 01-1.5 0V6.75A.75.75 0 019.25 6zM14.25 9a.75.75 0 01.75.75v5.5a.75.75 0 01-1.5 0v-5.5a.75.75 0 01.75-.75z" clipRule="evenodd" /></svg>;
   const CartIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>;
@@ -33,10 +36,10 @@ const Header: React.FC = () => {
             <img src={LOGO_URL} alt="Night Food Logo" className="h-16 w-auto" />
           </Link>
           <div className="flex items-center space-x-2 sm:space-x-4">
-            {(user?.role === 'admin' || user?.role === 'staff' || user?.role === 'manager') && (
-              <Link to="/admin" className="hidden sm:flex items-center gap-1.5 text-sm font-semibold text-gray-600 hover:text-orange-600 transition-colors duration-300 px-3 py-2 rounded-lg hover:bg-gray-100">
+            {(userRole === 'admin' || userRole === 'staff' || userRole === 'manager') && (
+              <Link to="/admin" className="flex items-center gap-1.5 text-sm font-semibold text-gray-600 hover:text-orange-600 transition-colors duration-300 px-3 py-2 rounded-lg hover:bg-gray-100">
                 <AdminIcon />
-                <span>Quản lý</span>
+                <span className="hidden sm:inline">Quản lý</span>
               </Link>
             )}
             <Link to="/cart" className="relative p-2 rounded-full text-gray-600 hover:bg-gray-100 hover:text-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors duration-300" aria-label="Xem giỏ hàng">

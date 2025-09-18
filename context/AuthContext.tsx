@@ -5,15 +5,16 @@ export interface User {
   email: string;
   role: 'admin' | 'staff' | 'manager' | 'customer';
   password?: string;
+  token?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   users: User[];
   isAuthenticated: boolean;
-  login: (email: string, password?: string) => boolean;
+  login: (email: string, password?: string) => Promise<boolean>;
   logout: () => void;
-  register: (email: string, password?: string) => boolean;
+  register: (email: string, password?: string) => Promise<boolean>;
   addUser: (email: string, role: 'staff' | 'manager', password?: string) => void;
   deleteUser: (userId: string) => void;
   updateUserRole: (userId: string, newRole: 'staff' | 'manager' | 'customer') => void;
@@ -28,38 +29,100 @@ const initialUsers: User[] = [
     { id: 'user-2', email: 'manager@gmail.com', role: 'manager', password: 'manager' },
 ];
 
+function parseJwt(token: string) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map(function (c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        })
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    console.error("Lỗi giải mã token:", e);
+    return null;
+  }
+}
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>(initialUsers);
 
-  const login = useCallback((email: string, password?: string) => {
-    const lowerEmail = email.toLowerCase();
-    const existingUser = users.find(u => u.email.toLowerCase() === lowerEmail && u.password === password);
+  const login = useCallback(async (email: string, password?: string) => {
+    try {
+      const response = await fetch('/api/Login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (existingUser) {
-      setUser(existingUser);
-      return true;
-    }
-    alert('Email hoặc mật khẩu không đúng.');
-    return false;
-  }, [users]);
-
-  const register = useCallback((email: string, password?: string) => {
-    const lowerEmail = email.toLowerCase();
-    if (users.some(u => u.email.toLowerCase() === lowerEmail)) {
-        alert('Email này đã được đăng ký.');
+      if (response.ok) {
+        const { token } = await response.json();
+        if (token) {
+          const decoded = parseJwt(token);
+          if (decoded) {
+            const roleClaim = decoded['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || decoded.role;
+            const userToSet: User = {
+              id: decoded.sub || decoded.jti, 
+              email: decoded.email,
+              role: (roleClaim?.toLowerCase() as User['role']) || 'customer',
+              token: token,
+            };
+            setUser(userToSet);
+            return true;
+          }
+        }
+        setUser(null);
         return false;
+      } else {
+        const errorText = await response.text();
+        try {
+          const errorData = JSON.parse(errorText);
+          alert(errorData.message || 'Email hoặc mật khẩu không đúng.');
+        } catch (e) {
+          console.error('Phản hồi lỗi đăng nhập không phải là JSON:', errorText);
+          alert('Đã có lỗi từ server. Vui lòng thử lại.');
+        }
+        return false;
+      }
+    } catch (error) {
+      console.error('Lỗi fetch khi đăng nhập:', error);
+      alert('Đã xảy ra lỗi trong quá trình đăng nhập.');
+      return false;
     }
-    const newCustomer: User = { 
-        id: `user-${Date.now()}`, 
-        email: lowerEmail, 
-        role: 'customer',
-        password: password,
-    };
-    setUsers(prev => [...prev, newCustomer]);
-    setUser(newCustomer); // Auto-login after registration
-    return true;
-  }, [users]);
+  }, []);
+
+  const register = useCallback(async (email: string, password?: string) => {
+    try {
+      const response = await fetch('/api/Register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (response.ok) {
+        alert('Đăng ký thành công! Vui lòng đăng nhập.');
+        // You might want to automatically log in the user here as well
+        return true;
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || 'Đăng ký không thành công.');
+        return false;
+      }
+    } catch (error) {
+      console.error('Lỗi đăng ký:', error);
+      alert('Đã xảy ra lỗi trong quá trình đăng ký.');
+      return false;
+    }
+  }, []);
 
   const logout = useCallback(() => setUser(null), []);
 
@@ -108,7 +171,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     return false;
   }, [users]);
-
 
   const isAuthenticated = !!user;
 

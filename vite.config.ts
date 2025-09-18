@@ -9,7 +9,7 @@ export default defineConfig({
       // Bất kỳ yêu cầu nào bắt đầu bằng '/api'
       '/api': {
         // sẽ được chuyển tiếp đến server backend này
-        target: 'https://343a5356c607.ngrok-free.app',
+        target: 'https://da13fc00cc35.ngrok-free.app',
         
         // Cần thiết để server backend chấp nhận yêu cầu
         changeOrigin: true,
