@@ -14,7 +14,7 @@ interface AuthContextType {
   login: (email: string, password?: string) => boolean;
   logout: () => void;
   register: (email: string, password?: string) => boolean;
-  addUser: (email: string, role: 'staff' | 'manager') => void;
+  addUser: (email: string, role: 'staff' | 'manager', password?: string) => void;
   deleteUser: (userId: string) => void;
   updateUserRole: (userId: string, newRole: 'staff' | 'manager' | 'customer') => void;
   updateUserPassword: (userId: string, newPassword: string) => boolean;
@@ -63,12 +63,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = useCallback(() => setUser(null), []);
 
-  const addUser = useCallback((email: string, role: 'staff' | 'manager') => {
+  const addUser = useCallback((email: string, role: 'staff' | 'manager', password?: string) => {
     if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
         alert('Email đã tồn tại.');
         return;
     }
-    const newUser: User = { id: `user-${Date.now()}`, email, role, password: 'password123' };
+    const newUser: User = { id: `user-${Date.now()}`, email, role, password: password || 'password123' };
     setUsers(prev => [...prev, newUser]);
   }, [users]);
 
