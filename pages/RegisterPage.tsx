@@ -6,13 +6,21 @@ import { LOGO_URL } from '../assets';
 const RegisterPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null); // State for the error message
+  const [confirmPassword, setConfirmPassword] = useState(''); // State for confirm password
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { register } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check if passwords match
+    if (password !== confirmPassword) {
+      setError('Mật khẩu xác nhận không khớp.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     
@@ -20,7 +28,7 @@ const RegisterPage: React.FC = () => {
     
     setLoading(false);
     if (result.success) {
-        navigate('/login'); // Redirect to login after successful registration
+        navigate('/login');
     } else {
         setError(result.message || 'Đăng ký không thành công.');
     }
@@ -47,12 +55,12 @@ const RegisterPage: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className={`bg-gray-50 border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors ${
-                    error ? 'border-red-500' : ''
+                    error && error.includes('Email') ? 'border-red-500' : ''
                   }`}
                   required
                   placeholder="email@example.com"
                 />
-                {error && <p className="text-red-500 text-xs italic mt-2">{error}</p>}
+                {error && error.includes('Email') && <p className="text-red-500 text-xs italic mt-2">{error}</p>}
               </div>
               <div>
                 <label className="block text-gray-700 text-sm font-semibold mb-2" htmlFor="password">
@@ -67,6 +75,23 @@ const RegisterPage: React.FC = () => {
                   required
                   placeholder="••••••••"
                 />
+              </div>
+              <div>
+                <label className="block text-gray-700 text-sm font-semibold mb-2" htmlFor="confirm-password">
+                  Xác nhận Mật khẩu
+                </label>
+                <input
+                  type="password"
+                  id="confirm-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={`bg-gray-50 border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors ${
+                    error && error.includes('khớp') ? 'border-red-500' : ''
+                  }`}
+                  required
+                  placeholder="••••••••"
+                />
+                {error && error.includes('khớp') && <p className="text-red-500 text-xs italic mt-2">{error}</p>}
               </div>
               <div>
                 <button
