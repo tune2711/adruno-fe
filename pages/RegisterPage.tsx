@@ -6,16 +6,23 @@ import { LOGO_URL } from '../assets';
 const RegisterPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null); // State for the error message
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { register } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, you would register the user here
-    console.log('Registering with:', { email, password });
-    const success = register(email, password);
-    if (success) {
-        navigate('/');
+    setLoading(true);
+    setError(null);
+    
+    const result = await register(email, password);
+    
+    setLoading(false);
+    if (result.success) {
+        navigate('/login'); // Redirect to login after successful registration
+    } else {
+        setError(result.message || 'Đăng ký không thành công.');
     }
   };
 
@@ -39,10 +46,13 @@ const RegisterPage: React.FC = () => {
                   id="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="bg-gray-50 border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors"
+                  className={`bg-gray-50 border border-gray-300 rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors ${
+                    error ? 'border-red-500' : ''
+                  }`}
                   required
                   placeholder="email@example.com"
                 />
+                {error && <p className="text-red-500 text-xs italic mt-2">{error}</p>}
               </div>
               <div>
                 <label className="block text-gray-700 text-sm font-semibold mb-2" htmlFor="password">
@@ -61,9 +71,10 @@ const RegisterPage: React.FC = () => {
               <div>
                 <button
                   type="submit"
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-all duration-300 ease-in-out transform hover:scale-105"
+                  disabled={loading}
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-all duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-wait"
                 >
-                  Đăng ký
+                  {loading ? 'Đang xử lý...' : 'Đăng ký'}
                 </button>
               </div>
             </form>

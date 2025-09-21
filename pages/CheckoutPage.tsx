@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../hooks/useCart';
@@ -10,6 +9,7 @@ const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [transactionId, setTransactionId] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState(5); // Countdown state
 
   useEffect(() => {
     if (cartItems.length === 0 && !paymentConfirmed) {
@@ -18,20 +18,17 @@ const CheckoutPage: React.FC = () => {
   }, [cartItems, paymentConfirmed, navigate]);
 
   const handleConfirmPayment = () => {
-    // Add order to history before clearing cart
     addOrder(cartItems);
     setPaymentConfirmed(true);
     setTimeout(() => {
         clearCart();
-    }, 500); // give time for the state to update before clearing cart
+    }, 500);
   };
   
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
   };
 
-
-  // Lấy transactionId từ API khi tạo mã QR
   const hasFetched = useRef(false);
   useEffect(() => {
     if (totalPrice > 0 && cartItems.length > 0 && !hasFetched.current) {
@@ -40,17 +37,9 @@ const CheckoutPage: React.FC = () => {
         .then(async res => {
           if (!res.ok) throw new Error('API error');
           const data = await res.json();
-          if (data && data.transactionId) {
-            setTransactionId(data.transactionId);
-          } else {
-            setTransactionId(null);
-            console.error('No transactionId in response', data);
-          }
+          setTransactionId(data?.transactionId || null);
         })
-        .catch((err) => {
-          setTransactionId(null);
-          console.error('QR API error:', err);
-        });
+        .catch(() => setTransactionId(null));
     } else if (totalPrice === 0 || cartItems.length === 0) {
       setTransactionId(null);
       hasFetched.current = false;
@@ -60,6 +49,23 @@ const CheckoutPage: React.FC = () => {
   const qrDescription = transactionId ? encodeURIComponent(transactionId) : '';
   const qrCodeUrl = `https://img.vietqr.io/image/MB-0396374030-compact.png?addInfo=${qrDescription}&accountName=NGUYEN%20DUC%20TOAN${totalPrice > 0 ? `&amount=${totalPrice}` : ''}`;
 
+  // Effect for countdown and redirect
+  useEffect(() => {
+    if (paymentConfirmed) {
+      const countdownInterval = setInterval(() => {
+        setCountdown(prev => prev - 1);
+      }, 1000);
+
+      const redirectTimeout = setTimeout(() => {
+        navigate('/');
+      }, 5000);
+
+      return () => {
+        clearInterval(countdownInterval);
+        clearTimeout(redirectTimeout);
+      };
+    }
+  }, [paymentConfirmed, navigate]);
 
   if (paymentConfirmed) {
       return (
@@ -69,6 +75,7 @@ const CheckoutPage: React.FC = () => {
                 </svg>
               <h1 className="text-3xl font-bold text-gray-800 mb-2">Thanh toán thành công!</h1>
               <p className="text-gray-600 mb-6">Cảm ơn bạn đã đặt hàng. Đơn hàng của bạn đang được chuẩn bị.</p>
+              <p className="text-gray-500 mb-6">Bạn sẽ được chuyển về trang chủ sau {countdown} giây.</p>
               <button onClick={() => navigate('/')} className="px-6 py-3 bg-orange-500 text-white font-semibold rounded-md hover:bg-orange-600">
                   Tiếp tục mua sắm
               </button>
@@ -80,7 +87,6 @@ const CheckoutPage: React.FC = () => {
     <div className="container mx-auto px-6 py-8">
       <h1 className="text-3xl font-bold text-center text-gray-800 mb-8">Thanh toán</h1>
       <div className="max-w-4xl mx-auto flex flex-col md:flex-row gap-8">
-        {/* Order Summary */}
         <div className="w-full md:w-1/2 bg-white p-6 rounded-lg shadow-md">
             <h2 className="text-2xl font-semibold mb-4 border-b pb-2">Tóm tắt đơn hàng</h2>
             {cartItems.map(item => (
@@ -95,30 +101,29 @@ const CheckoutPage: React.FC = () => {
             </div>
         </div>
 
-        {/* QR Code Payment */}
         <div className="w-full md:w-1/2 bg-white p-6 rounded-lg shadow-md flex flex-col items-center">
             <h2 className="text-2xl font-semibold mb-4">Quét mã QR để thanh toán</h2>
             <p className="text-gray-600 text-center mb-4">Sử dụng ứng dụng ngân hàng hoặc ví điện tử của bạn để quét mã.</p>
-      <div className="p-4 border rounded-lg">
-        {transactionId ? (
-          <>
-            <img 
-              src={qrCodeUrl}
-              alt="QR Code thanh toán"
-              className="w-64 h-64"
-            />
-            <div className="mt-4 p-2 bg-gray-100 rounded text-center break-all">
-              <span className="font-semibold text-gray-700">Mã giao dịch:</span><br />
-              <span className="text-blue-600">{transactionId}</span>
+            <div className="p-4 border rounded-lg">
+              {transactionId ? (
+                <>
+                  <img 
+                    src={qrCodeUrl}
+                    alt="QR Code thanh toán"
+                    className="w-64 h-64"
+                  />
+                  <div className="mt-4 p-2 bg-gray-100 rounded text-center break-all">
+                    <span className="font-semibold text-gray-700">Mã giao dịch:</span><br />
+                    <span className="text-blue-600">{transactionId}</span>
+                  </div>
+                </>
+              ) : (
+                <div>Đang tạo mã QR...</div>
+              )}
             </div>
-          </>
-        ) : (
-          <div>Đang tạo mã QR...</div>
-        )}
-      </div>
-      <button onClick={handleConfirmPayment} className="mt-6 w-full px-6 py-3 bg-green-500 text-white font-semibold rounded-md hover:bg-green-600" disabled={!transactionId}>
-        Xác nhận đã thanh toán
-      </button>
+            <button onClick={handleConfirmPayment} className="mt-6 w-full px-6 py-3 bg-green-500 text-white font-semibold rounded-md hover:bg-green-600" disabled={!transactionId}>
+              Xác nhận đã thanh toán
+            </button>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import React, { createContext, useState, ReactNode, useMemo, useCallback } from 'react';
+import React, { createContext, useState, ReactNode, useMemo, useCallback, useEffect } from 'react';
 
 export interface User {
   id: string;
@@ -14,20 +14,14 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password?: string) => Promise<boolean>;
   logout: () => void;
-  register: (email: string, password?: string) => Promise<boolean>;
-  addUser: (email: string, role: 'staff' | 'manager', password?: string) => void;
-  deleteUser: (userId: string) => void;
-  updateUserRole: (userId: string, newRole: 'staff' | 'manager' | 'customer') => void;
-  updateUserPassword: (userId: string, newPassword: string) => boolean;
+  register: (email: string, password?: string) => Promise<{ success: boolean; message?: string }>;
+  addUser: (email: string, role: 'staff' | 'manager', password?: string) => Promise<void>;
+  deleteUser: (userId: string) => Promise<void>;
+  updateUserRole: (userId: string, newRole: 'staff' | 'manager' | 'customer') => Promise<void>;
+  updateUserPassword: (userId: string, newPassword: string) => Promise<boolean>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const initialUsers: User[] = [
-    { id: 'user-0', email: 'admin@gmail.com', role: 'admin', password: '1' },
-    { id: 'user-1', email: 'staff@gmail.com', role: 'staff', password: 'staff' },
-    { id: 'user-2', email: 'manager@gmail.com', role: 'manager', password: 'manager' },
-];
 
 function parseJwt(token: string) {
   try {
@@ -50,7 +44,45 @@ function parseJwt(token: string) {
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>(initialUsers);
+  const [users, setUsers] = useState<User[]>([]);
+
+  const fetchUsers = useCallback(async (token: string) => {
+    try {
+      const response = await fetch('/api/Users', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data);
+      } else {
+        console.error('Failed to fetch users');
+        setUsers([]); // Clear users on failure
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      setUsers([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    const loginTime = localStorage.getItem('loginTime');
+    if (storedUser && loginTime) {
+      const timeDiff = new Date().getTime() - Number(loginTime);
+      if (timeDiff < 300000) { // 5 minutes
+        const loggedUser: User = JSON.parse(storedUser);
+        setUser(loggedUser);
+        if (loggedUser.role === 'admin' && loggedUser.token) {
+          fetchUsers(loggedUser.token);
+        }
+      } else {
+        localStorage.removeItem('user');
+        localStorage.removeItem('loginTime');
+      }
+    }
+  }, [fetchUsers]);
 
   const login = useCallback(async (email: string, password?: string) => {
     try {
@@ -75,10 +107,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               token: token,
             };
             setUser(userToSet);
+            localStorage.setItem('user', JSON.stringify(userToSet));
+            localStorage.setItem('loginTime', new Date().getTime().toString());
+            if (userToSet.role === 'admin') {
+              fetchUsers(userToSet.token);
+            }
             return true;
           }
         }
-        setUser(null);
         return false;
       } else {
         const errorText = await response.text();
@@ -96,82 +132,128 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       alert('Đã xảy ra lỗi trong quá trình đăng nhập.');
       return false;
     }
-  }, []);
+  }, [fetchUsers]);
 
   const register = useCallback(async (email: string, password?: string) => {
     try {
       const response = await fetch('/api/Register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password, role: 'customer' }), // Đã thêm role: 'customer'
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, role: 'customer' }),
       });
 
       if (response.ok) {
         alert('Đăng ký thành công! Vui lòng đăng nhập.');
-        return true;
+        return { success: true };
       } else {
         const errorData = await response.json();
-        // Cố gắng hiển thị lỗi cụ thể từ server, nếu không thì hiển thị lỗi chung
         const message = errorData.errors ? Object.values(errorData.errors).flat().join(' ') : (errorData.message || 'Đăng ký không thành công.');
-        alert(message);
-        return false;
+        return { success: false, message: message };
       }
     } catch (error) {
       console.error('Lỗi đăng ký:', error);
-      alert('Đã xảy ra lỗi trong quá trình đăng ký.');
-      return false;
+      return { success: false, message: 'Đã xảy ra lỗi trong quá trình đăng ký.' };
     }
   }, []);
 
-  const logout = useCallback(() => setUser(null), []);
+  const logout = useCallback(() => {
+    setUser(null);
+    setUsers([]);
+    localStorage.removeItem('user');
+    localStorage.removeItem('loginTime');
+  }, []);
 
-  const addUser = useCallback((email: string, role: 'staff' | 'manager', password?: string) => {
-    if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
-        alert('Email đã tồn tại.');
-        return;
+ const addUser = useCallback(async (email: string, role: 'staff' | 'manager', password?: string) => {
+    if (!user?.token) return;
+    try {
+        const response = await fetch('/api/Users', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${user.token}`,
+            },
+            body: JSON.stringify({ email, password, role }),
+        });
+        if (response.ok) {
+            alert('Thêm người dùng thành công!');
+            fetchUsers(user.token);
+        } else {
+            const error = await response.json();
+            alert(`Thêm thất bại: ${error.message || 'Unknown error'}`);
+        }
+    } catch (error) {
+        console.error('Error adding user:', error);
+        alert('Có lỗi xảy ra khi thêm người dùng.');
     }
-    const newUser: User = { id: `user-${Date.now()}`, email, role, password: password || 'password123' };
-    setUsers(prev => [...prev, newUser]);
-  }, [users]);
+}, [user?.token, fetchUsers]);
 
-  const deleteUser = useCallback((userId: string) => {
-    const userToDelete = users.find(u => u.id === userId);
-    if (userToDelete?.role === 'admin') {
-        alert('Không thể xóa tài khoản admin chính.');
-        return;
-    }
+
+  const deleteUser = useCallback(async (userId: string) => {
+    if (!user?.token) return;
      if (user?.id === userId) {
         alert('Bạn không thể xóa chính mình.');
         return;
     }
-    setUsers(prev => prev.filter(u => u.id !== userId));
-  }, [users, user]);
-  
-  const updateUserRole = useCallback((userId: string, newRole: 'staff' | 'manager' | 'customer') => {
-      setUsers(prevUsers => prevUsers.map(u => {
-          if (u.id === userId && u.role !== 'admin') {
-              return { ...u, role: newRole };
-          }
-          return u;
-      }));
-  }, []);
-  
-  const updateUserPassword = useCallback((userId: string, newPassword: string) => {
-    const userToUpdate = users.find(u => u.id === userId && (u.role === 'staff' || u.role === 'manager'));
-
-    if (userToUpdate) {
-        setUsers(prevUsers => 
-            prevUsers.map(u => 
-                u.id === userId ? { ...u, password: newPassword } : u
-            )
-        );
-        return true;
+    try {
+        const response = await fetch(`/api/Users/${userId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${user.token}`,
+            },
+        });
+        if (response.ok) {
+            alert('Xóa người dùng thành công!');
+            fetchUsers(user.token);
+        } else {
+            alert('Xóa thất bại.');
+        }
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        alert('Có lỗi xảy ra khi xóa người dùng.');
     }
-    
-    return false;
-  }, [users]);
+}, [user?.token, user?.id, fetchUsers]);
+  
+  const updateUserRole = useCallback(async (userId: string, newRole: 'staff' | 'manager' | 'customer') => {
+      if (!user?.token) return;
+      try {
+        const response = await fetch(`/api/Users/${userId}/role`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${user.token}`,
+            },
+            body: JSON.stringify({ role: newRole }),
+        });
+
+        if (response.ok) {
+            alert('Cập nhật vai trò thành công!');
+            fetchUsers(user.token);
+        } else {
+             alert('Cập nhật vai trò thất bại.');
+        }
+      } catch (error) {
+          console.error('Error updating user role:', error);
+          alert('Có lỗi xảy ra.');
+      }
+  }, [user?.token, fetchUsers]);
+  
+  const updateUserPassword = useCallback(async (userId: string, newPassword: string) => {
+    if (!user?.token) return false;
+     try {
+        const response = await fetch(`/api/Users/${userId}/password`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${user.token}`,
+            },
+            body: JSON.stringify({ password: newPassword }),
+        });
+        return response.ok;
+      } catch (error) {
+          console.error('Error updating password:', error);
+          return false;
+      }
+  }, [user?.token]);
 
   const isAuthenticated = !!user;
 
