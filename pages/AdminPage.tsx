@@ -18,7 +18,7 @@ const formatPrice = (price: number) => {
 // Revenue & Sales Components
 // =================================================================================
 
-const StatCard: React.FC<{ title: string; value: string; icon: JSX.Element }> = ({ title, value, icon }) => (
+const StatCard: React.FC<{ title: string; value: string; icon: Element }> = ({ title, value, icon }) => (
     <div className="bg-white p-6 rounded-lg shadow-md flex items-center">
         <div className="bg-orange-100 text-orange-500 rounded-full p-3 mr-4">
             {icon}
@@ -118,12 +118,17 @@ const ProductManagement: React.FC<{ isReadOnly: boolean }> = ({ isReadOnly }) =>
     const [productToDelete, setProductToDelete] = useState<Product | null>(null);
     const [productToEdit, setProductToEdit] = useState<Product | null>(null);
 
-    const handleConfirmDelete = () => {
+    const handleConfirmDelete = async () => { // Thêm async
         if (productToDelete) {
-            deleteProduct(productToDelete.id);
-            setProductToDelete(null);
+            try {
+                await deleteProduct(productToDelete.id); // Thêm await và try...catch
+                setProductToDelete(null); // Chỉ đóng khi thành công
+            } catch (error: any) {
+                alert(`Lỗi khi xóa: ${error.message}`); // Hiển thị lỗi
+            }
         }
     };
+    
 
     return (
         <div className="bg-white p-6 rounded-lg shadow-md animate-fade-in">
@@ -181,21 +186,23 @@ const ChangePasswordModal: React.FC<{ user: User; onClose: () => void; }> = ({ u
     const [password, setPassword] = useState('');
     const { updateUserPassword } = useAuth();
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (password.trim().length < 6) {
-            alert('Mật khẩu phải có ít nhất 6 ký tự.');
+    
+        if (!password.trim()) {
+            alert('Mật khẩu mới không được để trống.');
             return;
         }
-        const success = updateUserPassword(user.id, password);
-        if (success) {
-            alert(`Đã cập nhật mật khẩu cho ${user.email}.`);
-            onClose();
-        } else {
-            alert('Không thể cập nhật mật khẩu.');
+        try {
+            // Gọi hàm updateUserPassword từ hook, truyền vào id của user và mật khẩu mới
+            await updateUserPassword(user.id, password);
+            alert('Đã cập nhật mật khẩu thành công!');
+            onClose(); // Đóng modal sau khi thành công
+        } catch (error: any) {
+            console.error('Lỗi khi đổi mật khẩu:', error);
+            alert(`Có lỗi xảy ra khi đổi mật khẩu: ${error.message}`);
         }
-    };
-    
+    };    
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4" role="dialog" aria-modal="true" aria-labelledby="changePasswordModalTitle">
             <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-sm animate-fade-in">
@@ -454,15 +461,15 @@ const AddProductModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       return [...new Set(allCategories)].sort();
     }, [products]);
   
-    const handleSubmit = (e: React.FormEvent) => {
-      e.preventDefault();
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
       const numericPrice = parseInt(price, 10);
       if (!name || isNaN(numericPrice) || numericPrice < 0 || !description || !category) {
         alert('Vui lòng điền đầy đủ và chính xác thông tin.');
         return;
       }
-      addProduct({ name, price: numericPrice, description, category, imageUrl });
-      onClose();
+      await addProduct({ name, price: numericPrice, description, category, imageUrl });
+  onClose();
     };
   
     return (

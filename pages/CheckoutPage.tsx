@@ -2,14 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../hooks/useCart';
 import { useOrders } from '../hooks/useOrders';
+import { useAuth } from '../hooks/useAuth'; // Import useAuth
 
 const CheckoutPage: React.FC = () => {
   const { cartItems, totalPrice, clearCart } = useCart();
   const { addOrder } = useOrders();
+  const { user } = useAuth(); // Get user info
   const navigate = useNavigate();
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [transactionId, setTransactionId] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(5); // Countdown state
+  const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
     if (cartItems.length === 0 && !paymentConfirmed) {
@@ -18,7 +20,15 @@ const CheckoutPage: React.FC = () => {
   }, [cartItems, paymentConfirmed, navigate]);
 
   const handleConfirmPayment = () => {
-    addOrder(cartItems);
+    addOrder(cartItems, 'QR_CODE');
+    setPaymentConfirmed(true);
+    setTimeout(() => {
+        clearCart();
+    }, 500);
+  };
+
+  const handleCashPayment = () => {
+    addOrder(cartItems, 'CASH');
     setPaymentConfirmed(true);
     setTimeout(() => {
         clearCart();
@@ -49,7 +59,6 @@ const CheckoutPage: React.FC = () => {
   const qrDescription = transactionId ? encodeURIComponent(transactionId) : '';
   const qrCodeUrl = `https://img.vietqr.io/image/MB-0396374030-compact.png?addInfo=${qrDescription}&accountName=NGUYEN%20DUC%20TOAN${totalPrice > 0 ? `&amount=${totalPrice}` : ''}`;
 
-  // Effect for countdown and redirect
   useEffect(() => {
     if (paymentConfirmed) {
       const countdownInterval = setInterval(() => {
@@ -66,6 +75,9 @@ const CheckoutPage: React.FC = () => {
       };
     }
   }, [paymentConfirmed, navigate]);
+
+  const allowedRoles = ['admin', 'manager', 'staff'];
+  const canAcceptCash = user && allowedRoles.includes(user.role.toLowerCase());
 
   if (paymentConfirmed) {
       return (
@@ -124,6 +136,14 @@ const CheckoutPage: React.FC = () => {
             <button onClick={handleConfirmPayment} className="mt-6 w-full px-6 py-3 bg-green-500 text-white font-semibold rounded-md hover:bg-green-600" disabled={!transactionId}>
               Xác nhận đã thanh toán
             </button>
+            {canAcceptCash && (
+              <button 
+                onClick={handleCashPayment} 
+                className="mt-4 w-full px-6 py-3 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600"
+              >
+                Thanh toán bằng tiền mặt
+              </button>
+            )}
         </div>
       </div>
     </div>
