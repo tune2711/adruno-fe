@@ -339,11 +339,11 @@ const UserManagement: React.FC = () => {
                                     </td>
                                     <td className="p-3 text-right">
                                         <div className="flex justify-end items-center gap-2">
-                                            {(user.role === 'staff' || user.role === 'manager') && (
+                                            {user.role !== 'customer' && (
                                                 <button onClick={() => setUserToChangePassword(user)} className="text-gray-500 hover:text-gray-700" aria-label={`Đổi mật khẩu cho ${user.email}`}>
-                                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path fillRule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L4.667 19.41A2 2 0 012 17.914V14.5A2 2 0 014 12.5h2.141A6.001 6.001 0 0118 8zm-8 2a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                                                  </svg>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fillRule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L4.667 19.41A2 2 0 012 17.914V14.5A2 2 0 014 12.5h2.141A6.001 6.001 0 0118 8zm-8 2a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                                                    </svg>
                                                 </button>
                                             )}
                                             <button onClick={() => deleteUser(user.id)} disabled={currentUser?.id === user.id} className="text-red-500 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed" aria-label={`Xóa ${user.email}`}>

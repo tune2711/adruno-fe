@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://84f28783b150.ngrok-free.app',
+        target: 'https://backend.pcsieure.click',
         changeOrigin: true,
         secure: false,
         // Thêm header này để tự động bỏ qua trang cảnh báo của ngrok
