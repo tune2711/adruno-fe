@@ -212,20 +212,24 @@ if (typeof window !== 'undefined' && !window.SpeechSDK) {
 
   const hasFetched = useRef(false);
   useEffect(() => {
-    if (totalPrice > 0 && cartItems.length > 0 && !hasFetched.current) {
-      hasFetched.current = true;
-      fetch(`/api/Banking/create?amount=${totalPrice}`)
-        .then(async res => {
-          if (!res.ok) throw new Error('API error');
-          const data = await res.json();
-          setTransactionId(data?.transactionId || null);
-        })
-        .catch(() => setTransactionId(null));
-    } else if (totalPrice === 0 || cartItems.length === 0) {
-      setTransactionId(null);
-      hasFetched.current = false;
-    }
-  }, [totalPrice, cartItems]);
+  if (totalPrice > 0 && cartItems.length > 0 && !hasFetched.current) {
+    hasFetched.current = true;
+    fetch('/api/Banking/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: totalPrice })
+    })
+      .then(async res => {
+        if (!res.ok) throw new Error('API error');
+        const data = await res.json();
+        setTransactionId(data?.transactionId || null);
+      })
+      .catch(() => setTransactionId(null));
+  } else if (totalPrice === 0 || cartItems.length === 0) {
+    setTransactionId(null);
+    hasFetched.current = false;
+  }
+}, [totalPrice, cartItems]);
 
   const qrDescription = transactionId ? encodeURIComponent(transactionId) : '';
   const qrCodeUrl = `https://img.vietqr.io/image/MB-0396374030-compact.png?addInfo=${qrDescription}&accountName=NGUYEN%20DUC%20TOAN${totalPrice > 0 ? `&amount=${totalPrice}` : ''}`;

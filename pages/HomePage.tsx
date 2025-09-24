@@ -4,12 +4,14 @@ import ProductCard from '../components/ProductCard';
 
 const HomePage: React.FC = () => {
   const { products, loading, error } = useProducts();
+  console.log('products:', products);
+  const safeProducts = Array.isArray(products) ? products : [];
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Tất cả');
 
   const categories = useMemo(() => {
     const preferredOrder = ['Tất cả', 'Món chính', 'Món ăn vặt', 'Đồ uống', 'Tráng miệng'];
-    const productCategories = [...new Set(products.map(p => p.category))];
+    const productCategories = [...new Set(safeProducts.map(p => p.category))];
     const orderedCategories = preferredOrder.filter(cat => cat === 'Tất cả' || productCategories.includes(cat));
     productCategories.forEach(cat => {
       if (!preferredOrder.includes(cat)) {
@@ -17,17 +19,17 @@ const HomePage: React.FC = () => {
       }
     });
     return orderedCategories;
-  }, [products]);
+  }, [safeProducts]);
 
   const filteredProducts = useMemo(() => {
-    return products
+     return safeProducts
       .filter(product =>
         selectedCategory === 'Tất cả' || product.category === selectedCategory
       )
       .filter(product =>
         product.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
-  }, [products, searchTerm, selectedCategory]);
+  }, [safeProducts, searchTerm, selectedCategory]);
 
   if (loading) {
     return <div className="container mx-auto text-center p-8">Đang tải sản phẩm...</div>;
@@ -82,8 +84,8 @@ const HomePage: React.FC = () => {
       <main className="container mx-auto p-4 md:p-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 lg:gap-8">
           {filteredProducts.map(product => (
-            <ProductCard key={product.id} product={product} />
-          ))}
+  <ProductCard key={product.id} product={product} />
+))}
         </div>
         {filteredProducts.length === 0 && !loading && (
           <div className="text-center col-span-full py-16">
@@ -94,5 +96,6 @@ const HomePage: React.FC = () => {
     </div>
   );
 };
+
 
 export default HomePage;

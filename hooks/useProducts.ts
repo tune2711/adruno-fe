@@ -1,6 +1,8 @@
 
 import { useContext } from 'react';
 import { ProductContext } from '../context/ProductContext';
+import { useState, useEffect } from 'react';
+
 
 /**
  * Custom hook to access the ProductContext.
@@ -10,10 +12,24 @@ import { ProductContext } from '../context/ProductContext';
  * and functions to add, update, or delete products.
  * @throws {Error} If used outside of a ProductProvider.
  */
-export const useProducts = () => {
-  const context = useContext(ProductContext);
-  if (context === undefined) {
-    throw new Error('useProducts must be used within a ProductProvider');
-  }
-  return context;
-};
+export function useProducts() {
+  const [products, setProducts] = useState([]); // Luôn là mảng
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetch('/api/Products')
+      .then(res => res.json())
+      .then(data => {
+        console.log('API data:', data);
+        setProducts(Array.isArray(data) ? data : []);
+        setLoading(false);
+      })
+      .catch(err => {
+        setProducts([]); // Đảm bảo là mảng khi lỗi
+        setLoading(false);
+      });
+  }, []);
+
+  return { products, loading, error };
+}
