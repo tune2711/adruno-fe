@@ -29,6 +29,7 @@ import { useCart } from '../hooks/useCart';
 import { useOrders } from '../hooks/useOrders';
 import { useAuth } from '../hooks/useAuth'; // Import useAuth
 // Azure Speech TTS config
+const AZURE_KEY = import.meta.env.VITE_AZURE_KEY;
 const AZURE_REGION = "japaneast";
 const TTS_VOICE = "vi-VN-HoaiMyNeural";
 
@@ -50,6 +51,9 @@ function speakAmount(amount, onDone) {
     audio.src = '';
   }
   const sdk = window.SpeechSDK;
+  if (!AZURE_KEY) {
+    throw new Error("Azure Speech key is missing. Please set VITE_AZURE_KEY in your .env file.");
+  }
   const speechConfig = sdk.SpeechConfig.fromSubscription(AZURE_KEY, AZURE_REGION);
   const audioConfig = sdk.AudioConfig.fromDefaultSpeakerOutput();
   const synth = new sdk.SpeechSynthesizer(speechConfig, audioConfig);
@@ -214,10 +218,8 @@ if (typeof window !== 'undefined' && !window.SpeechSDK) {
   useEffect(() => {
   if (totalPrice > 0 && cartItems.length > 0 && !hasFetched.current) {
     hasFetched.current = true;
-    fetch('/api/Banking/create', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: totalPrice })
+    fetch(`/api/Banking/create?amount=${totalPrice}`, {
+      method: 'GET'
     })
       .then(async res => {
         if (!res.ok) throw new Error('API error');

@@ -449,77 +449,87 @@ const AdminPage: React.FC = () => {
 };
 
 const AddProductModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-    const [name, setName] = useState('');
-    const [price, setPrice] = useState('');
-    const [description, setDescription] = useState('');
-    const [category, setCategory] = useState('');
-    const [imageUrl, setImageUrl] = useState('');
-    const { addProduct, products } = useProducts();
-  
-    const existingCategories = useMemo(() => {
-      const allCategories = products.map(p => p.category);
-      return [...new Set(allCategories)].sort();
-    }, [products]);
-  
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-      const numericPrice = parseInt(price, 10);
-      if (!name || isNaN(numericPrice) || numericPrice < 0 || !description || !category) {
-        alert('Vui lòng điền đầy đủ và chính xác thông tin.');
-        return;
-      }
-      await addProduct({ name, price: numericPrice, description, category, imageUrl });
-  onClose();
-    };
-  
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4" role="dialog" aria-modal="true" aria-labelledby="addProductModalTitle">
-        <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md animate-fade-in">
-          <h2 id="addProductModalTitle" className="text-2xl font-bold text-center text-gray-800 mb-6">Thêm món ăn mới</h2>
-          <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="name">Tên món ăn</label>
-              <input type="text" id="name" value={name} onChange={(e) => setName(e.target.value)} className="bg-white shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-orange-200" required />
-            </div>
-            <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="price">Giá (VND)</label>
-              <input type="number" id="price" value={price} onChange={(e) => setPrice(e.target.value)} className="bg-white shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-orange-200" required min="0" />
-            </div>
-            <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="imageUrl">URL Hình ảnh</label>
-                <input type="url" id="imageUrl" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className="bg-white shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-orange-200" placeholder="https://..." />
-                <p className="text-xs text-gray-500 mt-1">Để trống sẽ sử dụng ảnh mặc định.</p>
-            </div>
-             <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="category">Danh mục</label>
-              <input 
-                type="text" 
-                id="category" 
-                value={category} 
-                onChange={(e) => setCategory(e.target.value)} 
-                className="bg-white shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-orange-200" 
-                required 
-                placeholder="ví dụ: Món chính, Món ăn vặt..."
-                list="category-suggestions"
-              />
-              <datalist id="category-suggestions">
-                {existingCategories.map(cat => (
-                  <option key={cat} value={cat} />
-                ))}
-              </datalist>
-            </div>
-            <div className="mb-6">
-              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="description">Mô tả</label>
-              <textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} className="bg-white shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-orange-200" required rows={3} />
-            </div>
-            <div className="flex items-center justify-end gap-4">
-              <button type="button" onClick={onClose} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition-colors">Hủy</button>
-              <button type="submit" className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors">Thêm món ăn</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    );
+        const [name, setName] = useState('');
+        const [price, setPrice] = useState('');
+        const [description, setDescription] = useState('');
+        const [category, setCategory] = useState('');
+        const [imageUrl, setImageUrl] = useState('');
+        const [loading, setLoading] = useState(false);
+        const { addProduct, products } = useProducts();
+
+        const existingCategories = useMemo(() => {
+                const allCategories = products.map(p => p.category);
+                return [...new Set(allCategories)].sort();
+        }, [products]);
+
+        const handleSubmit = async (e: React.FormEvent) => {
+                e.preventDefault();
+                const numericPrice = parseInt(price, 10);
+                if (!name || isNaN(numericPrice) || numericPrice < 0 || !description || !category) {
+                        alert('Vui lòng điền đầy đủ và chính xác thông tin.');
+                        return;
+                }
+                setLoading(true);
+                try {
+                        await addProduct({ name, price: numericPrice, description, category, imageUrl });
+                        alert('Thêm món ăn thành công!');
+                        onClose();
+                } catch (error: any) {
+                        alert('Có lỗi xảy ra khi thêm món ăn: ' + (error?.message || 'Không xác định'));
+                } finally {
+                        setLoading(false);
+                }
+        };
+
+        return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4" role="dialog" aria-modal="true" aria-labelledby="addProductModalTitle">
+                        <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md animate-fade-in">
+                                <h2 id="addProductModalTitle" className="text-2xl font-bold text-center text-gray-800 mb-6">Thêm món ăn mới</h2>
+                                <form onSubmit={handleSubmit}>
+                                        <div className="mb-4">
+                                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="name">Tên món ăn</label>
+                                                <input type="text" id="name" value={name} onChange={(e) => setName(e.target.value)} className="bg-white shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-orange-200" required disabled={loading} />
+                                        </div>
+                                        <div className="mb-4">
+                                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="price">Giá (VND)</label>
+                                                <input type="number" id="price" value={price} onChange={(e) => setPrice(e.target.value)} className="bg-white shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-orange-200" required min="0" disabled={loading} />
+                                        </div>
+                                        <div className="mb-4">
+                                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="imageUrl">URL Hình ảnh</label>
+                                                <input type="url" id="imageUrl" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className="bg-white shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-orange-200" placeholder="https://..." disabled={loading} />
+                                                <p className="text-xs text-gray-500 mt-1">Để trống sẽ sử dụng ảnh mặc định.</p>
+                                        </div>
+                                        <div className="mb-4">
+                                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="category">Danh mục</label>
+                                                <input 
+                                                        type="text" 
+                                                        id="category" 
+                                                        value={category} 
+                                                        onChange={(e) => setCategory(e.target.value)} 
+                                                        className="bg-white shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-orange-200" 
+                                                        required 
+                                                        placeholder="ví dụ: Món chính, Món ăn vặt..."
+                                                        list="category-suggestions"
+                                                        disabled={loading}
+                                                />
+                                                <datalist id="category-suggestions">
+                                                        {existingCategories.map(cat => (
+                                                                <option key={cat} value={cat} />
+                                                        ))}
+                                                </datalist>
+                                        </div>
+                                        <div className="mb-6">
+                                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="description">Mô tả</label>
+                                                <textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} className="bg-white shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-orange-200" required rows={3} disabled={loading} />
+                                        </div>
+                                        <div className="flex items-center justify-end gap-4">
+                                                <button type="button" onClick={onClose} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition-colors" disabled={loading}>Hủy</button>
+                                                <button type="submit" className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors" disabled={loading}>{loading ? 'Đang thêm...' : 'Thêm món ăn'}</button>
+                                        </div>
+                                </form>
+                        </div>
+                </div>
+        );
 };
 
 

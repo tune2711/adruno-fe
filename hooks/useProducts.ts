@@ -1,5 +1,5 @@
 
-import { useContext } from 'react';
+import React, { useContext } from 'react';
 import { ProductContext } from '../context/ProductContext';
 import { useState, useEffect } from 'react';
 
@@ -13,23 +13,11 @@ import { useState, useEffect } from 'react';
  * @throws {Error} If used outside of a ProductProvider.
  */
 export function useProducts() {
-  const [products, setProducts] = useState([]); // Luôn là mảng
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    fetch('/api/Products')
-      .then(res => res.json())
-      .then(data => {
-        console.log('API data:', data);
-        setProducts(Array.isArray(data) ? data : []);
-        setLoading(false);
-      })
-      .catch(err => {
-        setProducts([]); // Đảm bảo là mảng khi lỗi
-        setLoading(false);
-      });
-  }, []);
-
-  return { products, loading, error };
+  // Lấy context từ ProductContext
+  const context = React.useContext(ProductContext);
+  if (!context) {
+    throw new Error('useProducts must be used within a ProductProvider');
+  }
+  // Trả về đầy đủ các hàm và state từ context
+  return context;
 }
