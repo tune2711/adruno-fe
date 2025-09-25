@@ -38,18 +38,6 @@ function speakAmount(amount, onDone) {
     setTimeout(() => speakAmount(amount, onDone), 500);
     return;
   }
-  let audio = document.getElementById('tts-audio') as HTMLAudioElement;
-  if (!audio) {
-    audio = document.createElement('audio');
-    audio.id = 'tts-audio';
-    audio.style.display = 'none';
-    document.body.appendChild(audio);
-  } else {
-    // Nếu audio đang phát thì dừng lại và reset
-    audio.pause();
-    audio.currentTime = 0;
-    audio.src = '';
-  }
   const sdk = window.SpeechSDK;
   if (!AZURE_KEY) {
     throw new Error("Azure Speech key is missing. Please set VITE_AZURE_KEY in your .env file.");
@@ -61,15 +49,7 @@ function speakAmount(amount, onDone) {
   const ssml = `<speak version=\"1.0\" xml:lang=\"vi-VN\"><voice name=\"${TTS_VOICE}\">${text}</voice></speak>`;
   synth.speakSsmlAsync(ssml,
     result => {
-      if (result && result.audioData) {
-        const blob = new Blob([result.audioData], { type: 'audio/wav' });
-        const url = URL.createObjectURL(blob);
-        audio.src = url;
-        audio.onended = () => { if (onDone) onDone(); };
-        audio.play().catch(() => { if (onDone) onDone(); });
-      } else {
-        if (onDone) onDone();
-      }
+      if (onDone) onDone();
       synth.close();
     },
     err => { synth.close(); if (onDone) onDone(); }
@@ -80,6 +60,7 @@ const CheckoutPage: React.FC = () => {
   const isSpeechReady = useSpeechReady();
   const hasSpokenRef = useRef(false);
   const hasSuccessSpokenRef = useRef(false); // Đảm bảo chỉ đọc 1 lần ở trang thành công
+  const isProcessingPaymentRef = useRef(false); // Flag để tránh xử lý thanh toán nhiều lần
   const { cartItems, totalPrice, clearCart } = useCart();
   const { addOrder } = useOrders();
   const { user } = useAuth(); // Get user info
@@ -109,7 +90,7 @@ const CheckoutPage: React.FC = () => {
   // Tự động kiểm tra trạng thái giao dịch mỗi 1 giây (cho cả QR và tiền mặt)
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
-    if (!transactionId || paymentConfirmed || totalPrice <= 0) return;
+    if (!transactionId || paymentConfirmed || totalPrice <= 0 || isProcessingPaymentRef.current) return;
     // Nếu là tiền mặt thì chỉ polling khi isCashPolling=true, QR thì luôn polling
     if (!isCashPolling && !hasSpokenRef.current) {
       // QR code: polling luôn
@@ -122,8 +103,9 @@ const CheckoutPage: React.FC = () => {
   const res = await fetch(`/api/Banking/get/id/${transactionId}`);
         if (!res.ok) return;
         const data = await res.json();
-        if (data.amount >= totalPrice && !hasSpokenRef.current && isSpeechReady) {
+        if (data.amount >= totalPrice && !hasSpokenRef.current && !isProcessingPaymentRef.current && isSpeechReady) {
           hasSpokenRef.current = true;
+          isProcessingPaymentRef.current = true;
           if (intervalRef.current) {
             clearInterval(intervalRef.current);
             intervalRef.current = null;
@@ -161,16 +143,53 @@ if (typeof window !== 'undefined' && !window.SpeechSDK) {
     }
   }, [cartItems, paymentConfirmed, navigate]);
 
+  // Reset flags khi component unmount hoặc khi bắt đầu giao dịch mới
+  useEffect(() => {
+    return () => {
+      hasSpokenRef.current = false;
+      isProcessingPaymentRef.current = false;
+    };
+  }, []);
+
+  // Reset flags khi transactionId thay đổi (giao dịch mới)
+  useEffect(() => {
+    if (transactionId) {
+      hasSpokenRef.current = false;
+      isProcessingPaymentRef.current = false;
+    }
+  }, [transactionId]);
+
   const handleConfirmPayment = () => {
     if (!transactionId) {
       alert('Không có mã giao dịch. Vui lòng thử lại!');
       return;
     }
+    
+    // Kiểm tra nếu đã đang xử lý thanh toán thì không làm gì
+    if (isProcessingPaymentRef.current) {
+      return;
+    }
+    
   fetch(`/api/Banking/get/id/${transactionId}`)
       .then(async (res) => {
         if (!res.ok) throw new Error('Không kiểm tra được trạng thái giao dịch');
         const data = await res.json();
         if (data.amount >= totalPrice) {
+          // Kiểm tra lại lần nữa để tránh race condition
+          if (isProcessingPaymentRef.current) {
+            return;
+          }
+          isProcessingPaymentRef.current = true;
+          hasSpokenRef.current = true;
+          
+          // Dừng polling nếu đang chạy
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          
+          setLastPaidAmount(data.amount); // Lưu số tiền đã nhận
+          speakAmount(data.amount, undefined); // Phát giọng nói
           addOrder(cartItems, 'QR_CODE');
           setPaymentConfirmed(true);
           setTimeout(() => {
