@@ -28,6 +28,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCart } from '../hooks/useCart';
 import { useOrders } from '../hooks/useOrders';
 import { useAuth } from '../hooks/useAuth'; // Import useAuth
+import ReceiptModal from '../components/ReceiptModal';
 // Azure Speech TTS config
 const AZURE_KEY = import.meta.env.VITE_AZURE_KEY;
 const AZURE_REGION = "japaneast";
@@ -70,9 +71,73 @@ const CheckoutPage: React.FC = () => {
 
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [transactionId, setTransactionId] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(5);
+  const [countdown, setCountdown] = useState(15);
   const [lastPaidAmount, setLastPaidAmount] = useState<number | null>(null); // Lưu số tiền đã nhận
   const [isCashPolling, setIsCashPolling] = useState(false); // Đang chờ xác nhận tiền mặt
+  const [createdOrderId, setCreatedOrderId] = useState<string | number | null>(null);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [snapshotItems, setSnapshotItems] = useState(cartItems);
+  const [snapshotTime, setSnapshotTime] = useState<Date | null>(null);
+  const [snapshotTransactionId, setSnapshotTransactionId] = useState<string | null>(null);
+
+  // Gửi đơn hàng lên API Orders/receipt
+  const submitOrderReceipt = async () => {
+    try {
+      if (!transactionId || cartItems.length === 0) return;
+      const res = await fetch('/api/Orders/receipt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(user?.token ? { 'Authorization': `Bearer ${user.token}` } : {}),
+        },
+        body: JSON.stringify({
+          items: cartItems.map(item => ({ productId: item.id, quantity: item.quantity })),
+          bankingTransactionId: transactionId,
+        }),
+      });
+      try {
+        const data = await res.json();
+        const id = data?.id || data?.orderId || data?.data?.id || data?.data?.orderId || null;
+        if (id != null) setCreatedOrderId(id);
+      } catch {}
+    } catch (err) {
+      console.error('Submit order failed', err);
+    }
+  };
+
+  const printReceipt = async () => {
+    try {
+      let url = '';
+      if (createdOrderId != null) {
+        url = `/api/Orders/${createdOrderId}/receipt`;
+      } else if (transactionId) {
+        url = `/api/Orders/receipt-by-transaction/${transactionId}`;
+      } else {
+        alert('Không có thông tin đơn hàng để in.');
+        return;
+      }
+      const res = await fetch(url, {
+        headers: {
+          ...(user?.token ? { 'Authorization': `Bearer ${user.token}` } : {}),
+        },
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `In hóa đơn thất bại (HTTP ${res.status})`);
+      }
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = `receipt-${createdOrderId || transactionId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (err: any) {
+      alert(err?.message || 'Không thể in hóa đơn');
+    }
+  };
 
   // Đếm ngược và tự động chuyển về trang chủ khi thành công
   useEffect(() => {
@@ -112,9 +177,13 @@ const CheckoutPage: React.FC = () => {
           }
           setLastPaidAmount(data.amount); // Lưu số tiền đã nhận
           speakAmount(data.amount, undefined); // Phát giọng nói ngay khi xác nhận đủ tiền
+          await submitOrderReceipt();
           addOrder(isCashPolling ? cartItems : cartItems, isCashPolling ? 'CASH' : 'QR_CODE');
           setPaymentConfirmed(true);
           setIsCashPolling(false);
+          setSnapshotItems(cartItems);
+          setSnapshotTime(new Date());
+          setSnapshotTransactionId(transactionId);
           setTimeout(() => {
             clearCart();
           }, 500);
@@ -190,8 +259,12 @@ if (typeof window !== 'undefined' && !window.SpeechSDK) {
           
           setLastPaidAmount(data.amount); // Lưu số tiền đã nhận
           speakAmount(data.amount, undefined); // Phát giọng nói
+          await submitOrderReceipt();
           addOrder(cartItems, 'QR_CODE');
           setPaymentConfirmed(true);
+          setSnapshotItems(cartItems);
+          setSnapshotTime(new Date());
+          setSnapshotTransactionId(transactionId);
           setTimeout(() => {
             clearCart();
           }, 500);
@@ -267,15 +340,29 @@ if (typeof window !== 'undefined' && !window.SpeechSDK) {
   if (paymentConfirmed) {
     return (
       <div className="container mx-auto px-6 py-8 text-center">
+        <ReceiptModal
+          isOpen={showReceipt}
+          onClose={() => setShowReceipt(false)}
+          items={snapshotItems}
+          total={lastPaidAmount || totalPrice}
+          cashier={(user?.role || 'staff').toString()}
+          transactionId={snapshotTransactionId || transactionId || (typeof createdOrderId === 'number' ? String(createdOrderId) : null)}
+          createdAt={snapshotTime}
+        />
         <svg xmlns="http://www.w3.org/2000/svg" className="h-24 w-24 text-green-500 mx-auto mb-4" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
         </svg>
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Thanh toán thành công!</h1>
         <p className="text-gray-600 mb-6">Cảm ơn bạn đã đặt hàng. Đơn hàng của bạn đang được chuẩn bị.</p>
         <p className="text-gray-500 mb-6">Bạn sẽ được chuyển về trang chủ sau {countdown} giây.</p>
-        <button onClick={() => navigate('/')} className="px-6 py-3 bg-orange-500 text-white font-semibold rounded-md hover:bg-orange-600">
-          Tiếp tục mua sắm
-        </button>
+        <div className="flex items-center justify-center gap-3 mb-6">
+          <button onClick={() => setShowReceipt(true)} className="px-6 py-3 bg-gray-100 text-gray-800 font-semibold rounded-md hover:bg-gray-200">
+            In hóa đơn
+          </button>
+          <button onClick={() => navigate('/')} className="px-6 py-3 bg-orange-500 text-white font-semibold rounded-md hover:bg-orange-600">
+            Tiếp tục mua sắm
+          </button>
+        </div>
       </div>
     );
   }

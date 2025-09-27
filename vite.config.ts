@@ -1,20 +1,24 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    proxy: {
-      '/api': {
-        target: 'https://backend.pcsieure.click',
-        changeOrigin: true,
-        secure: false,
-        // Thêm header này để tự động bỏ qua trang cảnh báo của ngrok
-        headers: {
-          'ngrok-skip-browser-warning': 'true'
-        }
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const apiBase = env.VITE_API_BASE || 'http://localhost:5122';
+
+  return {
+    plugins: [react()],
+    server: {
+      proxy: {
+        '/api': {
+          target: apiBase,
+          changeOrigin: true,
+          secure: false,
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+          },
+        },
       },
     },
-  },
+  };
 });

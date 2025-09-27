@@ -8,6 +8,7 @@ import { Product } from '../types';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import EditProductModal from '../components/EditProductModal';
 import TransactionHistory from '../components/TransactionHistory';
+import ReceiptModal from '../components/ReceiptModal';
 
 // Helper to format currency
 const formatPrice = (price: number) => {
@@ -108,6 +109,297 @@ const StaffMonthlyIncome: React.FC = () => {
     );
 };
 
+
+// =================================================================================
+// Orders History (GET /api/Orders)
+// =================================================================================
+const OrdersHistory: React.FC = () => {
+    const [orders, setOrders] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const { user } = useAuth();
+    const role = (user?.role || '').toLowerCase();
+    const canDelete = role === 'admin' || role === 'manager';
+    const canPrint = role === 'admin' || role === 'manager' || role === 'staff';
+    const [showReceipt, setShowReceipt] = useState(false);
+    const [receiptItems, setReceiptItems] = useState<any[]>([]);
+    const [receiptTotal, setReceiptTotal] = useState<number>(0);
+    const [receiptCreatedAt, setReceiptCreatedAt] = useState<Date | null>(null);
+    const [receiptTxId, setReceiptTxId] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedQuery, setDebouncedQuery] = useState('');
+    const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
+
+    useEffect(() => {
+        const load = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const res = await fetch('/api/Orders', {
+                    headers: user?.token ? { 'Authorization': `Bearer ${user.token}` } : undefined,
+                });
+                if (!res.ok) {
+                    const text = await res.text();
+                    throw new Error(text || `HTTP ${res.status}`);
+                }
+                const data = await res.json();
+                setOrders(Array.isArray(data) ? data : (data?.items ?? []));
+            } catch (e: any) {
+                setError(e?.message || 'Không tải được lịch sử đơn hàng');
+            } finally {
+                setLoading(false);
+            }
+        };
+        load();
+    }, [user?.token]);
+
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedQuery(searchQuery), 300);
+        return () => clearTimeout(t);
+    }, [searchQuery]);
+
+    const getTransactionId = (o: any) => {
+        return (
+            o?.bankingTransactionId ||
+            o?.bankingTransactionID ||
+            o?.transactionId ||
+            o?.bankTransactionId ||
+            o?.bankingCode ||
+            o?.paymentTransactionId ||
+            o?.paymentCode ||
+            '-'
+        );
+    };
+    const getCreatedAt = (o: any) => o?.createdAt || o?.createdDate || o?.orderDate || o?.date || o?.timestamp || '';
+    const getItemCount = (o: any) => {
+        const numericFromKeys = (keys: string[]) => {
+            for (const k of keys) {
+                const v = o?.[k];
+                if (typeof v === 'number' && !isNaN(v)) return v;
+            }
+            return null;
+        };
+        const fromKeys = numericFromKeys(['itemCount', 'itemsCount', 'totalItems', 'totalItem', 'totalQuantity', 'quantityTotal', 'count']);
+        if (fromKeys != null) return fromKeys;
+        if (Array.isArray(o?.items)) {
+            const hasQuantity = o.items.some((it: any) => typeof it?.quantity === 'number');
+            if (hasQuantity) return o.items.reduce((s: number, it: any) => s + (Number(it?.quantity) || 0), 0);
+            return o.items.length;
+        }
+        if (Array.isArray(o?.orderItems)) {
+            const hasQuantity = o.orderItems.some((it: any) => typeof it?.quantity === 'number');
+            if (hasQuantity) return o.orderItems.reduce((s: number, it: any) => s + (Number(it?.quantity) || 0), 0);
+            return o.orderItems.length;
+        }
+        return 0;
+    };
+    const getTotalAmount = (o: any) => {
+        if (typeof o?.totalAmount === 'number') return o.totalAmount;
+        if (Array.isArray(o?.items)) {
+            const sum = o.items.reduce((s: number, it: any) => {
+                const qty = Number(it?.quantity ?? 1);
+                const price = Number(it?.price ?? 0);
+                return s + (isNaN(qty * price) ? 0 : qty * price);
+            }, 0);
+            return sum > 0 ? sum : null;
+        }
+        return null;
+    };
+
+    const downloadBlob = (blob: Blob, filename: string) => {
+        const objectUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = objectUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(objectUrl);
+    };
+
+    const handlePrint = async (o: any) => {
+        // Hiển thị UI hóa đơn giống ở trang thanh toán
+        const itemsSource = Array.isArray(o?.items) ? o.items : (Array.isArray(o?.orderItems) ? o.orderItems : []);
+        const transformed = itemsSource.map((it: any, idx: number) => ({
+            id: it?.productId ?? idx,
+            name: it?.name ?? it?.productName ?? `Sản phẩm #${it?.productId ?? idx+1}`,
+            price: Number(it?.price ?? 0),
+            imageUrl: '',
+            description: '',
+            category: '',
+            quantity: Number(it?.quantity ?? 1),
+        }));
+        setReceiptItems(transformed);
+        const total = getTotalAmount(o) ?? transformed.reduce((s: number, i: any) => s + i.price * i.quantity, 0);
+        setReceiptTotal(total);
+        const created = getCreatedAt(o);
+        setReceiptCreatedAt(created ? new Date(created) : null);
+        setReceiptTxId(getTransactionId(o));
+        setShowReceipt(true);
+    };
+
+    const handleDelete = async (o: any) => {
+        if (!canDelete) return;
+        const id = o?.id;
+        if (id == null) {
+            alert('Không xác định được mã đơn để xóa');
+            return;
+        }
+        if (!confirm(`Bạn có chắc muốn xóa đơn #${id}?`)) return;
+        try {
+            const res = await fetch(`/api/Orders/${id}`, {
+                method: 'DELETE',
+                headers: user?.token ? { 'Authorization': `Bearer ${user.token}` } : undefined,
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            setOrders(prev => prev.filter((x: any) => x?.id !== id));
+        } catch (e: any) {
+            alert('Xóa đơn thất bại: ' + (e?.message || ''));
+        }
+    };
+
+    // Derived filtered list like TransactionHistory
+    const filteredOrders = useMemo(() => {
+        let list = orders as any[];
+        if (dateFilter !== 'all') {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            let start: Date;
+            if (dateFilter === 'today') start = today;
+            else if (dateFilter === 'week') start = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+            else start = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+            list = list.filter(o => new Date(getCreatedAt(o)) >= start);
+        }
+        if (debouncedQuery.trim()) {
+            const q = debouncedQuery.toLowerCase();
+            list = list.filter(o => String(o?.id ?? '').toLowerCase().includes(q) || String(getTransactionId(o)).toLowerCase().includes(q));
+        }
+        return list;
+    }, [orders, debouncedQuery, dateFilter]);
+
+    return (
+        <div className="bg-white p-6 rounded-lg shadow-md animate-fade-in">
+            <div className="flex items-center justify-between mb-4 border-b pb-4">
+                <h2 className="text-xl font-bold text-gray-800">Lịch sử đơn hàng</h2>
+                <button
+                    onClick={async () => {
+                        try {
+                            setLoading(true);
+                            setError(null);
+                            const res = await fetch('/api/Orders', {
+                                headers: user?.token ? { 'Authorization': `Bearer ${user.token}` } : undefined,
+                            });
+                            if (!res.ok) {
+                                const text = await res.text();
+                                throw new Error(text || `HTTP ${res.status}`);
+                            }
+                            const data = await res.json();
+                            setOrders(Array.isArray(data) ? data : (data?.items ?? []));
+                        } catch (err: any) {
+                            setError(err?.message || 'Không tải được lịch sử đơn hàng');
+                        } finally {
+                            setLoading(false);
+                        }
+                    }}
+                    className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md"
+                >
+                    Tải lại
+                </button>
+            </div>
+
+            {/* Search & Date filters */}
+            <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2">
+                    <div className="relative group">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <svg className="w-5 h-5 text-gray-400 group-focus-within:text-orange-500 transition-colors" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" /></svg>
+                        </span>
+                        <input
+                            type="text"
+                            placeholder="Tìm theo mã đơn, mã giao dịch..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-400 transition-colors"
+                        />
+                    </div>
+                </div>
+                <div>
+                    <div className="flex flex-wrap gap-2 justify-start md:justify-end">
+                        {(['all','today','week','month'] as const).map(k => (
+                            <button key={k} onClick={() => setDateFilter(k)} className={`px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${dateFilter===k?'bg-orange-500 text-white shadow':'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
+                                {k==='all'?'Tất cả':k==='today'?'Hôm nay':k==='week'?'7 ngày qua':'30 ngày qua'}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {loading && <div>Đang tải...</div>}
+            {error && <div className="text-red-600">{error}</div>}
+            {!loading && !error && (
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead>
+                            <tr className="bg-gray-50">
+                                <th className="p-3 font-semibold text-sm text-gray-600 uppercase">Mã đơn</th>
+                                <th className="p-3 font-semibold text-sm text-gray-600 uppercase">Mã giao dịch</th>
+                                <th className="p-3 font-semibold text-sm text-gray-600 uppercase">Thời gian</th>
+                                <th className="p-3 font-semibold text-sm text-gray-600 uppercase">Số món</th>
+                                <th className="p-3 font-semibold text-sm text-gray-600 uppercase">Tổng tiền</th>
+                                {(canPrint || canDelete) && (
+                                    <th className="p-3 font-semibold text-sm text-gray-600 uppercase text-right">Hành động</th>
+                                )}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {orders.length === 0 && (
+                                <tr>
+                                    <td className="p-3 text-gray-500" colSpan={5}>Chưa có đơn hàng</td>
+                                </tr>
+                            )}
+                            {filteredOrders.map((o: any) => {
+                                const total = getTotalAmount(o);
+                                const created = getCreatedAt(o);
+                                const createdText = created ? new Date(created).toLocaleString('vi-VN') : '-';
+                                return (
+                                    <tr key={o?.id ?? `${getTransactionId(o)}-${created}`} className="border-b hover:bg-gray-50">
+                                        <td className="p-3 font-medium text-gray-800">{o?.id ?? '-'}</td>
+                                        <td className="p-3 text-gray-600 break-all">{getTransactionId(o)}</td>
+                                        <td className="p-3 text-gray-600">{createdText}</td>
+                                        <td className="p-3 text-gray-600">{getItemCount(o)}</td>
+                                        <td className="p-3 text-gray-600">{total != null ? formatPrice(total) : '-'}</td>
+                                        {(canPrint || canDelete) && (
+                                            <td className="p-3 text-right">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    {canPrint && (
+                                                        <button onClick={() => handlePrint(o)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">In</button>
+                                                    )}
+                                                    {canDelete && (
+                                                        <button onClick={() => handleDelete(o)} className="px-2 py-1 text-xs bg-red-500 hover:bg-red-600 text-white rounded">Xóa</button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        )}
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+            {/* Receipt Modal Preview */}
+            <ReceiptModal
+                isOpen={showReceipt}
+                onClose={() => setShowReceipt(false)}
+                items={receiptItems as any}
+                total={receiptTotal}
+                cashier={(user?.role || 'staff').toString()}
+                transactionId={receiptTxId}
+                createdAt={receiptCreatedAt}
+            />
+        </div>
+    );
+};
 
 // =================================================================================
 // Product Management Component
@@ -376,9 +668,9 @@ const AdminPage: React.FC = () => {
         }
     }, [user, navigate]);
 
-    const adminTabs = ['Doanh thu', 'Sản phẩm', 'Người dùng', 'Lịch sử giao dịch'];
-    const managerTabs = ['Doanh thu', 'Sản phẩm', 'Lịch sử giao dịch'];
-    const staffTabs = ['Thu nhập hôm nay', 'Thu nhập tháng này', 'Sản phẩm'];
+    const adminTabs = ['Doanh thu', 'Sản phẩm', 'Người dùng', 'Lịch sử giao dịch', 'Lịch sử đơn hàng'];
+    const managerTabs = ['Doanh thu', 'Sản phẩm', 'Lịch sử giao dịch', 'Lịch sử đơn hàng'];
+    const staffTabs = ['Doanh thu', 'Sản phẩm', 'Lịch sử đơn hàng'];
 
     const tabs = user?.role === 'admin' ? adminTabs :
                  user?.role === 'manager' ? managerTabs :
@@ -427,6 +719,7 @@ const AdminPage: React.FC = () => {
                         {activeTab === 'Sản phẩm' && <ProductManagement isReadOnly={false} />}
                         {activeTab === 'Người dùng' && <UserManagement />}
                         {activeTab === 'Lịch sử giao dịch' && <TransactionHistory />}
+                        {activeTab === 'Lịch sử đơn hàng' && <OrdersHistory />}
                     </>
                 )}
                 {user.role === 'manager' && (
@@ -434,13 +727,14 @@ const AdminPage: React.FC = () => {
                         {activeTab === 'Doanh thu' && <RevenueDashboard />}
                         {activeTab === 'Sản phẩm' && <ProductManagement isReadOnly={false} />}
                         {activeTab === 'Lịch sử giao dịch' && <TransactionHistory />}
+                        {activeTab === 'Lịch sử đơn hàng' && <OrdersHistory />}
                     </>
                 )}
                 {user.role === 'staff' && (
                     <>
-                        {activeTab === 'Thu nhập hôm nay' && <StaffDailyIncome />}
-                        {activeTab === 'Thu nhập tháng này' && <StaffMonthlyIncome />}
+                        {activeTab === 'Doanh thu' && <RevenueDashboard />}
                         {activeTab === 'Sản phẩm' && <ProductManagement isReadOnly={true} />}
+                        {activeTab === 'Lịch sử đơn hàng' && <OrdersHistory />}
                     </>
                 )}
             </div>
