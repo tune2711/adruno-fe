@@ -9,6 +9,7 @@ import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import EditProductModal from '../components/EditProductModal';
 import TransactionHistory from '../components/TransactionHistory';
 import ReceiptModal from '../components/ReceiptModal';
+import RevenueChart from '../components/RevenueChart';
 
 // Helper to format currency
 const formatPrice = (price: number) => {
@@ -63,6 +64,53 @@ const RevenueDashboard: React.FC = () => {
         if (txDate >= startOfMonth) monthlyRevenue += tx.amount;
     });
 
+    // Tuỳ chọn loại biểu đồ: 'week' hoặc 'month'
+    const [chartType, setChartType] = useState<'week'|'month'|'year'>('week');
+    let chartLabels: string[] = [];
+    let chartValues: number[] = [];
+    if (chartType === 'week') {
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+            const label = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+            chartLabels.push(label);
+            const sum = transactions
+                .filter((tx: any) => {
+                    const txDate = new Date(tx.timestamp);
+                    return txDate.getFullYear() === d.getFullYear() && txDate.getMonth() === d.getMonth() && txDate.getDate() === d.getDate();
+                })
+                .reduce((s: number, tx: any) => s + tx.amount, 0);
+            chartValues.push(sum);
+        }
+    } else if (chartType === 'month') {
+        // Biểu đồ doanh thu theo tháng (30 ngày gần nhất)
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+            const label = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+            chartLabels.push(label);
+            const sum = transactions
+                .filter((tx: any) => {
+                    const txDate = new Date(tx.timestamp);
+                    return txDate.getFullYear() === d.getFullYear() && txDate.getMonth() === d.getMonth() && txDate.getDate() === d.getDate();
+                })
+                .reduce((s: number, tx: any) => s + tx.amount, 0);
+            chartValues.push(sum);
+        }
+    } else if (chartType === 'year') {
+        // Biểu đồ doanh thu theo năm (12 tháng gần nhất)
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const label = d.toLocaleDateString('vi-VN', { month: '2-digit', year: 'numeric' });
+            chartLabels.push(label);
+            const sum = transactions
+                .filter((tx: any) => {
+                    const txDate = new Date(tx.timestamp);
+                    return txDate.getFullYear() === d.getFullYear() && txDate.getMonth() === d.getMonth();
+                })
+                .reduce((s: number, tx: any) => s + tx.amount, 0);
+            chartValues.push(sum);
+        }
+    }
+
     return (
         <div className="animate-fade-in">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -70,7 +118,18 @@ const RevenueDashboard: React.FC = () => {
                 <StatCard title="Doanh thu tháng này" value={formatPrice(monthlyRevenue)} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
                 <StatCard title="Tổng doanh thu" value={formatPrice(totalRevenue)} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>} />
             </div>
-            {/* ...giữ nguyên phần món ăn bán chạy nhất nếu cần... */}
+            {/* Biểu đồ doanh thu */}
+            <div className="bg-white p-4 rounded-lg shadow mb-8">
+                <div className="flex items-center gap-4 mb-2">
+                    <h3 className="text-lg font-semibold">Biểu đồ doanh thu {chartType === 'week' ? '7 ngày gần nhất' : chartType === 'month' ? '30 ngày gần nhất' : '12 tháng gần nhất'}</h3>
+                    <button onClick={() => setChartType('week')} className={`px-3 py-1 rounded ${chartType==='week'?'bg-orange-500 text-white':'bg-gray-200 text-gray-700'}`}>7 ngày</button>
+                    <button onClick={() => setChartType('month')} className={`px-3 py-1 rounded ${chartType==='month'?'bg-orange-500 text-white':'bg-gray-200 text-gray-700'}`}>30 ngày</button>
+                    <button onClick={() => setChartType('year')} className={`px-3 py-1 rounded ${chartType==='year'?'bg-orange-500 text-white':'bg-gray-200 text-gray-700'}`}>12 tháng</button>
+                </div>
+                <div style={{ width: '100%', maxWidth: 900 }}>
+                    <RevenueChart data={{ labels: chartLabels, values: chartValues }} />
+                </div>
+            </div>
         </div>
     );
 };

@@ -2,11 +2,12 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
 // Define the transaction type
 interface Transaction {
-  transactionId: string; 
-  amount: number;
-  description: string;
-  bank: string;
-  timestamp: string; // ISO string date
+    transactionId: string; 
+    amount: number;
+    description: string;
+    bank: string;
+    timestamp: string; // ISO string date
+    userName: string;
 }
 
 // Define the error object type
@@ -254,6 +255,7 @@ const TransactionHistory: React.FC = () => {
                                 <th className="p-3 font-semibold text-sm text-gray-600 uppercase">Mô tả</th>
                                 <th className="p-3 font-semibold text-sm text-gray-600 uppercase hidden md:table-cell">Ngân hàng</th>
                                 <th className="p-3 font-semibold text-sm text-gray-600 uppercase hidden lg:table-cell">ID Giao dịch</th>
+                                <th className="p-3 font-semibold text-sm text-gray-600 uppercase">Người chuyển</th>
                                 <th className="p-3 font-semibold text-sm text-gray-600 uppercase">Xóa</th>
                             </tr>
                         </thead>
@@ -265,6 +267,7 @@ const TransactionHistory: React.FC = () => {
                                     <td className="p-3 text-gray-800 font-medium">{tx.description}</td>
                                     <td className="p-3 text-gray-600 hidden md:table-cell">{tx.bank}</td>
                                     <td className="p-3 font-mono text-gray-500 break-all hidden lg:table-cell text-base font-semibold">{tx.transactionId}</td>
+                                    <td className="p-3">{tx.userName}</td>
                                     <td className="p-3">
                                         <button
                                             onClick={() => handleDelete(tx.transactionId)}
