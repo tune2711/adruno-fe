@@ -82,7 +82,6 @@ const RevenueDashboard: React.FC = () => {
             chartValues.push(sum);
         }
     } else if (chartType === 'month') {
-        // Biểu đồ doanh thu theo tháng (30 ngày gần nhất)
         for (let i = 29; i >= 0; i--) {
             const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
             const label = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
@@ -96,7 +95,6 @@ const RevenueDashboard: React.FC = () => {
             chartValues.push(sum);
         }
     } else if (chartType === 'year') {
-        // Biểu đồ doanh thu theo năm (12 tháng gần nhất)
         for (let i = 11; i >= 0; i--) {
             const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
             const label = d.toLocaleDateString('vi-VN', { month: '2-digit', year: 'numeric' });
@@ -121,7 +119,11 @@ const RevenueDashboard: React.FC = () => {
             {/* Biểu đồ doanh thu */}
             <div className="bg-white p-4 rounded-lg shadow mb-8">
                 <div className="flex items-center gap-4 mb-2">
-                    <h3 className="text-lg font-semibold">Biểu đồ doanh thu {chartType === 'week' ? '7 ngày gần nhất' : chartType === 'month' ? '30 ngày gần nhất' : '12 tháng gần nhất'}</h3>
+                    <h3 className="text-lg font-semibold">Biểu đồ doanh thu {
+                        chartType === 'week' ? '7 ngày gần nhất'
+                        : chartType === 'month' ? '30 ngày gần nhất'
+                        : '12 tháng gần nhất'
+                    }</h3>
                     <button onClick={() => setChartType('week')} className={`px-3 py-1 rounded ${chartType==='week'?'bg-orange-500 text-white':'bg-gray-200 text-gray-700'}`}>7 ngày</button>
                     <button onClick={() => setChartType('month')} className={`px-3 py-1 rounded ${chartType==='month'?'bg-orange-500 text-white':'bg-gray-200 text-gray-700'}`}>30 ngày</button>
                     <button onClick={() => setChartType('year')} className={`px-3 py-1 rounded ${chartType==='year'?'bg-orange-500 text-white':'bg-gray-200 text-gray-700'}`}>12 tháng</button>
