@@ -24,7 +24,7 @@ const LoginPage: React.FC = () => {
       <div className="max-w-sm w-full">
         <div className="text-center mb-8">
             <Link to="/" className="inline-block" aria-label="Trang chủ Night Food">
-                <img src={LOGO_URL} alt="Night Food Logo" className="w-48 mx-auto" />
+                <img src="/logo2.png" alt="Night Food Logo" className="w-48 mx-auto" />
             </Link>
         </div>
         <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200">

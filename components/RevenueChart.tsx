@@ -36,7 +36,7 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ data }) => {
       },
       title: {
         display: true,
-        text: 'Doanh thu theo thời gian',
+        text: 'Doanh thu theo',
         font: {
           size: 22,
           weight: 700,

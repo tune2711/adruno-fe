@@ -65,7 +65,7 @@ const RevenueDashboard: React.FC = () => {
     });
 
     // Tuỳ chọn loại biểu đồ: 'week' hoặc 'month'
-    const [chartType, setChartType] = useState<'week'|'month'|'year'>('week');
+                                            const [chartType, setChartType] = useState<'week'|'month'|'year'>('week');
     let chartLabels: string[] = [];
     let chartValues: number[] = [];
     if (chartType === 'week') {
@@ -419,9 +419,14 @@ const OrdersHistory: React.FC = () => {
                                 </tr>
                             )}
                             {filteredOrders.map((o: any) => {
-                                const total = getTotalAmount(o);
-                                const created = getCreatedAt(o);
-                                const createdText = created ? new Date(created).toLocaleString('vi-VN') : '-';
+                                                                const total = getTotalAmount(o);
+                                                                const created = getCreatedAt(o);
+                                                                let createdText = '-';
+                                                                if (created) {
+                                                                    // Parse as UTC and convert to Vietnam time
+                                                                    const utcDate = typeof created === 'string' ? new Date(created.replace(' ', 'T') + 'Z') : new Date(created);
+                                                                    createdText = utcDate.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+                                                                }
                                 return (
                                     <tr key={o?.id ?? `${getTransactionId(o)}-${created}`} className="border-b hover:bg-gray-50">
                                         <td className="p-3 font-medium text-gray-800">{o?.id ?? '-'}</td>

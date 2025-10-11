@@ -33,7 +33,7 @@ const Header: React.FC = () => {
       <header className="bg-white/95 backdrop-blur-sm shadow-sm sticky top-0 z-50">
         <nav className="container mx-auto px-4 sm:px-6 py-3 flex justify-between items-center">
         <Link to="/" className="flex items-center shrink-0" aria-label="Trang chủ Night Food">
-            <img src={LOGO_URL} alt="Night Food Logo" className="h-16 w-auto" />
+            <img src={LOGO_URL} alt="Night Food Logo" className="logo-img" />
           </Link>
           <div className="flex items-center space-x-2 sm:space-x-4">
             {(userRole === 'admin' || userRole === 'staff' || userRole === 'manager') && (

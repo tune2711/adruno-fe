@@ -68,18 +68,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
-    const loginTime = localStorage.getItem('loginTime');
-    if (storedUser && loginTime) {
-      const timeDiff = new Date().getTime() - Number(loginTime);
-      if (timeDiff < 300000) { // 5 minutes
-        const loggedUser: User = JSON.parse(storedUser);
-        setUser(loggedUser);
-        if (loggedUser.role === 'admin' && loggedUser.token) {
-          fetchUsers(loggedUser.token);
-        }
-      } else {
-        localStorage.removeItem('user');
-        localStorage.removeItem('loginTime');
+    if (storedUser) {
+      const loggedUser: User = JSON.parse(storedUser);
+      setUser(loggedUser);
+      if (loggedUser.role === 'admin' && loggedUser.token) {
+        fetchUsers(loggedUser.token);
       }
     }
   }, [fetchUsers]);

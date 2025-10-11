@@ -1,6 +1,6 @@
 import React from 'react';
 import { CartItem } from '../types';
-import logo from '../logo.png';
+import { LOGO_URL } from '../assets';
 
 interface ReceiptModalProps {
   isOpen: boolean;
@@ -35,12 +35,12 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, items, tot
       <div id="receipt-print-area" className="bg-white rounded-lg shadow-2xl w-full max-w-sm">
         <div className="p-5">
           <div className="flex items-center justify-center mb-2">
-            <img src={logo} alt="Logo" className="h-10 md:h-12 w-auto" />
+            <img src={LOGO_URL} alt="Logo" className="h-10 md:h-12 w-auto" />
           </div>
           <h2 className="text-center text-gray-800 font-semibold">Phiếu thanh toán</h2>
           <div className="mt-4 text-sm text-gray-700 space-y-1">
             <div>Thu ngân : <span className="font-medium">{cashier || '-'}</span></div>
-            <div>Ngày tạo: <span className="font-medium">{createdAt ? createdAt.toLocaleString('vi-VN') : '-'}</span></div>
+              <div>Ngày tạo: <span className="font-medium">{createdAt ? createdAt.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : '-'}</span></div>
             <div>Mã đơn: <span className="font-medium break-all">{transactionId || '-'}</span></div>
           </div>
 

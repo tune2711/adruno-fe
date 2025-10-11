@@ -37,10 +37,10 @@ const RegisterPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center p-4">
       <div className="max-w-sm w-full">
-          <div className="text-center mb-8">
-              <Link to="/" className="inline-block" aria-label="Trang chủ Night Food">
-                  <img src={LOGO_URL} alt="Night Food Logo" className="w-48 mx-auto" />
-              </Link>
+      <div className="text-center mb-8">
+        <Link to="/" className="inline-block" aria-label="Trang chủ Night Food">
+          <img src="/logo2.png" alt="Night Food Logo" className="w-48 mx-auto" />
+        </Link>
           </div>
           <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
             <h2 className="text-3xl font-bold text-center text-gray-800 mb-8">Đăng ký tài khoản</h2>

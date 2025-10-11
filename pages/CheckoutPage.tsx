@@ -58,11 +58,39 @@ function speakAmount(amount, onDone) {
 }
 
 const CheckoutPage: React.FC = () => {
+  const [speechEnabled, setSpeechEnabled] = useState(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('voiceEnabled') : null;
+    return saved === 'true';
+  });
+
+  // Save voice toggle state to localStorage when changed
+  useEffect(() => {
+    localStorage.setItem('voiceEnabled', speechEnabled ? 'true' : 'false');
+  }, [speechEnabled]);
+  // Ref để luôn lấy trạng thái mới nhất của speechEnabled
+  const speechEnabledRef = useRef(speechEnabled);
+  useEffect(() => { speechEnabledRef.current = speechEnabled; }, [speechEnabled]);
   const isSpeechReady = useSpeechReady();
   const hasSpokenRef = useRef(false);
   const hasSuccessSpokenRef = useRef(false); // Đảm bảo chỉ đọc 1 lần ở trang thành công
   const isProcessingPaymentRef = useRef(false); // Flag để tránh xử lý thanh toán nhiều lần
-  const { cartItems, totalPrice, clearCart } = useCart();
+  // Persist cart items in localStorage
+  const { cartItems, totalPrice, clearCart, setCartItems } = useCart();
+
+  // Load cart from localStorage on first render
+  useEffect(() => {
+    const savedCart = localStorage.getItem('cartItems');
+    if (savedCart) {
+      try {
+        setCartItems(JSON.parse(savedCart));
+      } catch {}
+    }
+  }, [setCartItems]);
+
+  // Save cart to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('cartItems', JSON.stringify(cartItems));
+  }, [cartItems]);
   const { addOrder } = useOrders();
   const { user } = useAuth(); // Get user info
   const navigate = useNavigate();
@@ -176,12 +204,13 @@ const CheckoutPage: React.FC = () => {
             intervalRef.current = null;
           }
           setLastPaidAmount(data.amount); // Lưu số tiền đã nhận
-          speakAmount(data.amount, undefined); // Phát giọng nói ngay khi xác nhận đủ tiền
+          if (speechEnabledRef.current) speakAmount(data.amount, undefined); // Phát giọng nói nếu bật
           await submitOrderReceipt();
           addOrder(isCashPolling ? cartItems : cartItems, isCashPolling ? 'CASH' : 'QR_CODE');
           setPaymentConfirmed(true);
           setIsCashPolling(false);
           setSnapshotItems(cartItems);
+          // Đảm bảo giờ Việt Nam khi tạo hóa đơn
           setSnapshotTime(new Date());
           setSnapshotTransactionId(transactionId);
           setTimeout(() => {
@@ -258,7 +287,7 @@ if (typeof window !== 'undefined' && !window.SpeechSDK) {
           }
           
           setLastPaidAmount(data.amount); // Lưu số tiền đã nhận
-          speakAmount(data.amount, undefined); // Phát giọng nói
+          if (speechEnabledRef.current) speakAmount(data.amount, undefined); // Phát giọng nói nếu bật
           await submitOrderReceipt();
           addOrder(cartItems, 'QR_CODE');
           setPaymentConfirmed(true);
@@ -347,7 +376,7 @@ if (typeof window !== 'undefined' && !window.SpeechSDK) {
           total={lastPaidAmount || totalPrice}
           cashier={(user?.role || 'staff').toString()}
           transactionId={snapshotTransactionId || transactionId || (typeof createdOrderId === 'number' ? String(createdOrderId) : null)}
-          createdAt={snapshotTime}
+          createdAt={snapshotTime ? snapshotTime.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
         />
         <svg xmlns="http://www.w3.org/2000/svg" className="h-24 w-24 text-green-500 mx-auto mb-4" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -370,6 +399,34 @@ if (typeof window !== 'undefined' && !window.SpeechSDK) {
   return (
     <div className="container mx-auto px-6 py-8">
       <h1 className="text-3xl font-bold text-center text-gray-800 mb-8">Thanh toán</h1>
+      <div className="flex justify-end mb-4">
+        <button
+          onClick={() => setSpeechEnabled((v) => !v)}
+          className={`flex items-center gap-3 px-6 py-3 rounded-3xl font-bold text-base shadow-lg transition-all duration-300 border-2 focus:outline-none focus:ring-2 focus:ring-green-300
+            ${speechEnabled ? 'bg-gradient-to-r from-green-400 to-green-600 text-white border-green-500 hover:from-green-500 hover:to-green-700' : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200'}`}
+        >
+          {speechEnabled ? (
+            <>
+              {/* SVG loa không viền ngoài, chỉ loa và sóng, màu trắng */}
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" viewBox="0 0 24 24" fill="white">
+                <path d="M5 9v6h4l5 5V4l-5 5H5z" />
+                <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.06c1.48-.74 2.5-2.26 2.5-4.03z" />
+                <path d="M19.5 12c0-3.07-1.64-5.64-4.5-6.32v2.06c2.01.49 3.5 2.25 3.5 4.26s-1.49 3.77-3.5 4.26v2.06c2.86-.68 4.5-3.25 4.5-6.32z" />
+              </svg>
+              Tắt giọng nói
+            </>
+          ) : (
+            <>
+              {/* Heroicons: volume-off (loa gạch chéo), màu xám */}
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="#888" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5L6 9H3v6h3l5 4V5z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 5L5 19" />
+              </svg>
+              Bật giọng nói
+            </>
+          )}
+        </button>
+      </div>
       <div className="max-w-4xl mx-auto flex flex-col md:flex-row gap-8">
         <div className="w-full md:w-1/2 bg-white p-6 rounded-lg shadow-md">
             <h2 className="text-2xl font-semibold mb-4 border-b pb-2">Tóm tắt đơn hàng</h2>

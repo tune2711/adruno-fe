@@ -7,4 +7,4 @@
 // cùng thư mục chứa 'index.html'. Đường dẫn '/logo.png' là đường dẫn tuyệt đối từ gốc
 // của trang web. Nếu logo vẫn không hiển thị, vui lòng kiểm tra lại tên tệp và vị trí của nó.
 
-export const LOGO_URL = '/logo.png';
+export const LOGO_URL = '/logo4.png';
