@@ -46,8 +46,9 @@ function speakAmount(amount, onDone) {
   const speechConfig = sdk.SpeechConfig.fromSubscription(AZURE_KEY, AZURE_REGION);
   const audioConfig = sdk.AudioConfig.fromDefaultSpeakerOutput();
   const synth = new sdk.SpeechSynthesizer(speechConfig, audioConfig);
-  const text = `Bạn Đã thanh toán thành công  ${Number(amount).toLocaleString('vi-VN')} Việt Nam đồng`;
-  const ssml = `<speak version=\"1.0\" xml:lang=\"vi-VN\"><voice name=\"${TTS_VOICE}\">${text}</voice></speak>`;
+  const text = `Bạn đã thanh toán thành công. Cảm ơn bạn đã mua và sử dụng sản phẩm.`;
+  // Slightly speed up TTS using prosody rate
+  const ssml = `<speak version=\"1.0\" xml:lang=\"vi-VN\"><voice name=\"${TTS_VOICE}\"><prosody rate=\"+20%\">${text}</prosody></voice></speak>`;
   synth.speakSsmlAsync(ssml,
     result => {
       if (onDone) onDone();
@@ -74,7 +75,23 @@ const CheckoutPage: React.FC = () => {
   const hasSpokenRef = useRef(false);
   const hasSuccessSpokenRef = useRef(false); // Đảm bảo chỉ đọc 1 lần ở trang thành công
   const isProcessingPaymentRef = useRef(false); // Flag để tránh xử lý thanh toán nhiều lần
-  const { cartItems, totalPrice, clearCart } = useCart();
+  // Persist cart items in localStorage
+  const { cartItems, totalPrice, clearCart, setCartItems } = useCart();
+
+  // Load cart from localStorage on first render
+  useEffect(() => {
+    const savedCart = localStorage.getItem('cartItems');
+    if (savedCart) {
+      try {
+        setCartItems(JSON.parse(savedCart));
+      } catch {}
+    }
+  }, [setCartItems]);
+
+  // Save cart to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('cartItems', JSON.stringify(cartItems));
+  }, [cartItems]);
   const { addOrder } = useOrders();
   const { user } = useAuth(); // Get user info
   const navigate = useNavigate();
@@ -360,13 +377,13 @@ if (typeof window !== 'undefined' && !window.SpeechSDK) {
           total={lastPaidAmount || totalPrice}
           cashier={(user?.role || 'staff').toString()}
           transactionId={snapshotTransactionId || transactionId || (typeof createdOrderId === 'number' ? String(createdOrderId) : null)}
-          createdAt={snapshotTime ?? new Date()}
+          createdAt={snapshotTime ? snapshotTime.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
         />
         <svg xmlns="http://www.w3.org/2000/svg" className="h-24 w-24 text-green-500 mx-auto mb-4" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
         </svg>
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Thanh toán thành công!</h1>
-        <p className="text-gray-600 mb-6">Cảm ơn bạn đã đặt hàng. Đơn hàng của bạn đang được chuẩn bị.</p>
+  <h1 className="text-3xl font-bold text-gray-800 mb-2">Thanh toán thành công!</h1>
+  <p className="text-gray-600 mb-6">Bạn đã thanh toán thành công. Cảm ơn bạn đã mua và sử dụng sản phẩm.</p>
         <p className="text-gray-500 mb-6">Bạn sẽ được chuyển về trang chủ sau {countdown} giây.</p>
         <div className="flex items-center justify-center gap-3 mb-6">
           <button onClick={() => setShowReceipt(true)} className="px-6 py-3 bg-gray-100 text-gray-800 font-semibold rounded-md hover:bg-gray-200">
