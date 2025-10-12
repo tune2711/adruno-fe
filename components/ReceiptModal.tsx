@@ -9,7 +9,8 @@ interface ReceiptModalProps {
   total: number;
   cashier: string; // expect role: admin | staff | manager
   transactionId: string | null; // show as mã đơn
-  createdAt: Date | null;
+  // createdAt may be a Date object or a string from API/UI
+  createdAt: string | Date | null;
 }
 
 const formatPrice = (price: number) => {
@@ -18,6 +19,21 @@ const formatPrice = (price: number) => {
 
 const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, items, total, cashier, transactionId, createdAt }) => {
   if (!isOpen) return null;
+
+  // Nếu là chuỗi kiểu 'YYYY-MM-DD HH:mm:ss' thì hiển thị nguyên xi
+  const isDbString = (val: any) => typeof val === 'string' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(val);
+  let createdDisplay = '-';
+  if (createdAt) {
+    if (isDbString(createdAt)) {
+      createdDisplay = createdAt; // Hiển thị nguyên xi chuỗi gốc
+    } else if (createdAt instanceof Date) {
+      createdDisplay = createdAt.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+    } else if (typeof createdAt === 'string') {
+      // Nếu là chuỗi khác, thử parse sang Date
+      const d = new Date(createdAt);
+      createdDisplay = !isNaN(d.getTime()) ? d.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : createdAt;
+    }
+  }
 
   return (
     <div id="receipt-print-root" className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
@@ -40,7 +56,9 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ isOpen, onClose, items, tot
           <h2 className="text-center text-gray-800 font-semibold">Phiếu thanh toán</h2>
           <div className="mt-4 text-sm text-gray-700 space-y-1">
             <div>Thu ngân : <span className="font-medium">{cashier || '-'}</span></div>
-              <div>Ngày tạo: <span className="font-medium">{createdAt ? createdAt.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : '-'}</span></div>
+            <div>
+              Ngày tạo: <span className="font-medium">{createdDisplay}</span>
+            </div>
             <div>Mã đơn: <span className="font-medium break-all">{transactionId || '-'}</span></div>
           </div>
 

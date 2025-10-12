@@ -293,8 +293,14 @@ const OrdersHistory: React.FC = () => {
         setReceiptItems(transformed);
         const total = getTotalAmount(o) ?? transformed.reduce((s: number, i: any) => s + i.price * i.quantity, 0);
         setReceiptTotal(total);
+        // Lấy đúng chuỗi giờ VN đã hiển thị ngoài bảng
+        let createdText = '-';
         const created = getCreatedAt(o);
-        setReceiptCreatedAt(created ? new Date(created) : null);
+        if (created) {
+          const utcDate = typeof created === 'string' ? new Date(created.replace(' ', 'T') + 'Z') : new Date(created);
+          createdText = utcDate.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+        }
+        setReceiptCreatedAt(createdText);
         setReceiptTxId(getTransactionId(o));
         setShowReceipt(true);
     };

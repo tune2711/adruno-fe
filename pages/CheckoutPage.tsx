@@ -74,23 +74,7 @@ const CheckoutPage: React.FC = () => {
   const hasSpokenRef = useRef(false);
   const hasSuccessSpokenRef = useRef(false); // Đảm bảo chỉ đọc 1 lần ở trang thành công
   const isProcessingPaymentRef = useRef(false); // Flag để tránh xử lý thanh toán nhiều lần
-  // Persist cart items in localStorage
-  const { cartItems, totalPrice, clearCart, setCartItems } = useCart();
-
-  // Load cart from localStorage on first render
-  useEffect(() => {
-    const savedCart = localStorage.getItem('cartItems');
-    if (savedCart) {
-      try {
-        setCartItems(JSON.parse(savedCart));
-      } catch {}
-    }
-  }, [setCartItems]);
-
-  // Save cart to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('cartItems', JSON.stringify(cartItems));
-  }, [cartItems]);
+  const { cartItems, totalPrice, clearCart } = useCart();
   const { addOrder } = useOrders();
   const { user } = useAuth(); // Get user info
   const navigate = useNavigate();
@@ -376,7 +360,7 @@ if (typeof window !== 'undefined' && !window.SpeechSDK) {
           total={lastPaidAmount || totalPrice}
           cashier={(user?.role || 'staff').toString()}
           transactionId={snapshotTransactionId || transactionId || (typeof createdOrderId === 'number' ? String(createdOrderId) : null)}
-          createdAt={snapshotTime ? snapshotTime.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
+          createdAt={snapshotTime ?? new Date()}
         />
         <svg xmlns="http://www.w3.org/2000/svg" className="h-24 w-24 text-green-500 mx-auto mb-4" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
