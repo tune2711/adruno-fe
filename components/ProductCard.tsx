@@ -16,6 +16,49 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
   const handleAddToCart = () => {
     if (isAdding) return;
+    // Start visual fly-to-cart animation
+    const img = document.querySelector(`img[alt="${product.name}"]`) as HTMLImageElement | null;
+    const cart = document.getElementById('site-cart-icon');
+    if (img && cart) {
+  const imgRect = img.getBoundingClientRect();
+  const cartRect = cart.getBoundingClientRect();
+
+  const clone = img.cloneNode(true) as HTMLImageElement;
+  // make the clone a centered circle (use the smaller side)
+  const size = Math.min(imgRect.width, imgRect.height);
+  const left = imgRect.left + (imgRect.width - size) / 2;
+  const top = imgRect.top + (imgRect.height - size) / 2;
+  clone.style.position = 'fixed';
+  clone.style.left = `${left}px`;
+  clone.style.top = `${top}px`;
+  clone.style.width = `${size}px`;
+  clone.style.height = `${size}px`;
+  clone.style.objectFit = 'cover';
+  clone.style.borderRadius = '50%';
+  clone.style.boxShadow = '0 12px 30px rgba(0,0,0,0.22)';
+  clone.style.transition = 'transform 700ms cubic-bezier(.22,.9,.35,1), opacity 700ms';
+  clone.style.willChange = 'transform, opacity';
+  clone.style.zIndex = '9999';
+  clone.style.pointerEvents = 'none';
+  clone.classList.add('fly-clone', 'fly-clone-round');
+      document.body.appendChild(clone);
+
+      // force repaint
+      void clone.offsetWidth;
+
+  const translateX = cartRect.left + cartRect.width / 2 - (left + size / 2);
+  const translateY = cartRect.top + cartRect.height / 2 - (top + size / 2);
+      clone.style.transform = `translate(${translateX}px, ${translateY}px) scale(0.2)`;
+      clone.style.opacity = '0.8';
+
+      // add a brief bounce class to cart
+      cart.classList.add('cart-bounce');
+      setTimeout(() => {
+        clone.remove();
+        cart.classList.remove('cart-bounce');
+      }, 800);
+    }
+
     addToCart(product);
     setIsAdding(true);
     setTimeout(() => setIsAdding(false), 1500);

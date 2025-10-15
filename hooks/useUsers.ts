@@ -6,11 +6,11 @@ export const useUsers = () => {
 
   const fetchUsers = useCallback(async () => {
     try {
-      const response = await fetch('/api/Users'); // Endpoint to get all users
+      const { default: apiFetch } = await import('../utils/api');
+      const response = await apiFetch('/api/Users');
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      // Corrected: .json() is a method and must be called.
       const data = await response.json();
       setUsers(data);
     } catch (error) {

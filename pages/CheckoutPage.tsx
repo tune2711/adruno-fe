@@ -400,34 +400,7 @@ if (typeof window !== 'undefined' && !window.SpeechSDK) {
   return (
     <div className="container mx-auto px-6 py-8">
       <h1 className="text-3xl font-bold text-center text-gray-800 mb-8">Thanh toán</h1>
-      <div className="flex justify-end mb-4">
-        <button
-          onClick={() => setSpeechEnabled((v) => !v)}
-          className={`flex items-center gap-3 px-6 py-3 rounded-3xl font-bold text-base shadow-lg transition-all duration-300 border-2 focus:outline-none focus:ring-2 focus:ring-green-300
-            ${speechEnabled ? 'bg-gradient-to-r from-green-400 to-green-600 text-white border-green-500 hover:from-green-500 hover:to-green-700' : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200'}`}
-        >
-          {speechEnabled ? (
-            <>
-              {/* SVG loa không viền ngoài, chỉ loa và sóng, màu trắng */}
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" viewBox="0 0 24 24" fill="white">
-                <path d="M5 9v6h4l5 5V4l-5 5H5z" />
-                <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.06c1.48-.74 2.5-2.26 2.5-4.03z" />
-                <path d="M19.5 12c0-3.07-1.64-5.64-4.5-6.32v2.06c2.01.49 3.5 2.25 3.5 4.26s-1.49 3.77-3.5 4.26v2.06c2.86-.68 4.5-3.25 4.5-6.32z" />
-              </svg>
-              Tắt giọng nói
-            </>
-          ) : (
-            <>
-              {/* Heroicons: volume-off (loa gạch chéo), màu xám */}
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="#888" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5L6 9H3v6h3l5 4V5z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 5L5 19" />
-              </svg>
-              Bật giọng nói
-            </>
-          )}
-        </button>
-      </div>
+      {/* Voice toggle removed from checkout page per UX request */}
       <div className="max-w-4xl mx-auto flex flex-col md:flex-row gap-8">
         <div className="w-full md:w-1/2 bg-white p-6 rounded-lg shadow-md">
             <h2 className="text-2xl font-semibold mb-4 border-b pb-2">Tóm tắt đơn hàng</h2>
@@ -446,26 +419,27 @@ if (typeof window !== 'undefined' && !window.SpeechSDK) {
         <div className="w-full md:w-1/2 bg-white p-6 rounded-lg shadow-md flex flex-col items-center">
             <h2 className="text-2xl font-semibold mb-4">Quét mã QR để thanh toán</h2>
             <p className="text-gray-600 text-center mb-4">Sử dụng ứng dụng ngân hàng hoặc ví điện tử của bạn để quét mã.</p>
-            <div className="p-4 border rounded-lg">
+            <div className="p-4 md:p-6 border rounded-lg max-w-md w-full mx-auto bg-white">
               {transactionId ? (
                 <>
-                  <img 
-                    src={qrCodeUrl}
-                    alt="QR Code thanh toán"
-                    className="w-64 h-64"
-                  />
-                  <div className="mt-4 p-2 bg-gray-100 rounded text-center break-all">
-                    <span className="font-semibold text-gray-700">Mã giao dịch:</span><br />
-                    <span className="text-blue-600">{transactionId}</span>
+                  <div className="flex items-center justify-center py-2">
+                    <img 
+                      src={qrCodeUrl}
+                      alt="QR Code thanh toán"
+                      className="w-56 h-56 sm:w-64 sm:h-64 md:w-72 md:h-72 max-w-full"
+                      style={{ imageRendering: 'pixelated' }}
+                    />
+                  </div>
+                  <div className="mt-3 px-3 py-2 bg-gray-50 rounded text-center break-all text-sm">
+                    <div className="text-gray-600">Mã giao dịch:</div>
+                    <div className="text-blue-600 font-medium mt-1">{transactionId}</div>
                   </div>
                 </>
               ) : (
-                <div>Đang tạo mã QR...</div>
+                <div className="py-6 text-center">Đang tạo mã QR...</div>
               )}
             </div>
-            <button onClick={handleConfirmPayment} className="mt-6 w-full px-6 py-3 bg-green-500 text-white font-semibold rounded-md hover:bg-green-600" disabled={!transactionId}>
-              Xác nhận đã thanh toán
-            </button>
+            {/* Confirm button removed per UX request */}
             {canAcceptCash && (
               <button 
                 onClick={handleCashPayment} 

@@ -27,3 +27,27 @@ body {
   white-space: nowrap !important;
   border: 0 !important;
 }
+
+/* Fly-to-cart clone and cart bounce */
+.cart-bounce {
+  animation: cartBounce 520ms cubic-bezier(.2,.9,.2,1);
+}
+
+@keyframes cartBounce {
+  0% { transform: translateY(0) scale(1); }
+  40% { transform: translateY(-8px) scale(1.08); }
+  70% { transform: translateY(0) scale(0.98); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+/* ensure cloned images render smoothly */
+.fly-clone {
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+  will-change: transform, opacity;
+}
+
+.fly-clone-round {
+  border-radius: 50% !important;
+  object-fit: cover;
+}

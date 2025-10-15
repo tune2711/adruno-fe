@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import apiFetch from '../utils/api';
 
 // Define the transaction type
 interface Transaction {
@@ -82,7 +83,7 @@ const TransactionHistory: React.FC = () => {
         setLoading(true);
         setError(null);
         try {
-            const response = await fetch(`${API_BASE_URL}/get`, {
+            const response = await apiFetch(`${API_BASE_URL}/get`, {
                 method: 'GET',
                 headers: { 'Accept': 'application/json' },
                 cache: 'no-cache',
@@ -151,19 +152,20 @@ const TransactionHistory: React.FC = () => {
             filtered = filtered.filter(tx => new Date(tx.timestamp) >= startDate);
         }
         
-        if (debouncedQuery.trim()) {
-            const lowercasedQuery = debouncedQuery.toLowerCase();
-            filtered = filtered.filter(tx => 
-                tx.description.toLowerCase().includes(lowercasedQuery) ||
-                tx.transactionId.toLowerCase().includes(lowercasedQuery)
-            );
+        if (debouncedQuery && String(debouncedQuery).trim()) {
+            const lowercasedQuery = String(debouncedQuery).toLowerCase();
+            filtered = filtered.filter(tx => {
+                const desc = String(tx?.description ?? '').toLowerCase();
+                const id = String(tx?.transactionId ?? tx?.transactionId ?? '').toLowerCase();
+                return desc.includes(lowercasedQuery) || id.includes(lowercasedQuery);
+            });
         }
 
         return filtered;
     }, [transactions, debouncedQuery, dateFilter]);
     
     const summaryStats = useMemo(() => {
-        const totalAmount = filteredTransactions.reduce((sum, tx) => sum + tx.amount, 0);
+        const totalAmount = filteredTransactions.reduce((sum, tx) => sum + (Number(tx?.amount) || 0), 0);
         const totalTransactions = filteredTransactions.length;
         return { totalAmount, totalTransactions };
     }, [filteredTransactions]);
@@ -184,7 +186,7 @@ const TransactionHistory: React.FC = () => {
     const handleDelete = async (transactionId: string) => {
         if (!window.confirm('Bạn có chắc chắn muốn xóa giao dịch này?')) return;
         try {
-            const response = await fetch(`${API_BASE_URL}/delete/${transactionId}`, {
+            const response = await apiFetch(`${API_BASE_URL}/delete/${transactionId}`, {
                 method: 'DELETE',
             });
             if (!response.ok) {

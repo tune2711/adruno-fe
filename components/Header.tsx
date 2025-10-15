@@ -35,14 +35,14 @@ const Header: React.FC = () => {
         <Link to="/" className="flex items-center shrink-0" aria-label="Trang chủ Night Food">
             <img src={LOGO_URL} alt="Night Food Logo" className="logo-img" />
           </Link>
-          <div className="flex items-center space-x-2 sm:space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
             {(userRole === 'admin' || userRole === 'staff' || userRole === 'manager') && (
               <Link to="/admin" className="flex items-center gap-1.5 text-sm font-semibold text-gray-600 hover:text-orange-600 transition-colors duration-300 px-3 py-2 rounded-lg hover:bg-gray-100">
                 <AdminIcon />
                 <span className="hidden sm:inline">Quản lý</span>
               </Link>
             )}
-            <Link to="/cart" className="relative p-2 rounded-full text-gray-600 hover:bg-gray-100 hover:text-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors duration-300" aria-label="Xem giỏ hàng">
+            <Link id="site-cart-icon" to="/cart" className="relative p-2 rounded-full text-gray-600 hover:bg-gray-100 hover:text-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors duration-300" aria-label="Xem giỏ hàng">
               <CartIcon />
               {totalItems > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center border-2 border-white">

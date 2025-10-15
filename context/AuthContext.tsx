@@ -48,17 +48,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const fetchUsers = useCallback(async (token: string) => {
     try {
-      const response = await fetch('/api/Users', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const { default: apiFetch } = await import('../utils/api');
+      const response = await apiFetch('/api/Users');
       if (response.ok) {
         const data = await response.json();
         setUsers(data);
       } else {
         console.error('Failed to fetch users');
-        setUsers([]); // Clear users on failure
+        setUsers([]);
       }
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -75,6 +72,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         fetchUsers(loggedUser.token);
       }
     }
+    // react to global unauthorized events (from api wrapper)
+    const onUnauthorized = () => {
+      setUser(null);
+      setUsers([]);
+      try { localStorage.removeItem('user'); localStorage.removeItem('loginTime'); } catch (e) {}
+    };
+    window.addEventListener('auth:unauthorized', onUnauthorized as EventListener);
+    return () => window.removeEventListener('auth:unauthorized', onUnauthorized as EventListener);
   }, [fetchUsers]);
 
   const login = useCallback(async (email: string, password?: string) => {
@@ -157,27 +162,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
  const addUser = useCallback(async (email: string, role: 'staff' | 'manager', password?: string) => {
-    if (!user?.token) return;
-    try {
-        const response = await fetch('/api/Users', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${user.token}`,
-            },
-            body: JSON.stringify({ email, password, role }),
-        });
-        if (response.ok) {
-            alert('Thêm người dùng thành công!');
-            fetchUsers(user.token);
-        } else {
-            const error = await response.json();
-            alert(`Thêm thất bại: ${error.message || 'Unknown error'}`);
-        }
-    } catch (error) {
-        console.error('Error adding user:', error);
-        alert('Có lỗi xảy ra khi thêm người dùng.');
+  if (!user?.token) return;
+  try {
+    const { default: apiFetch } = await import('../utils/api');
+    const response = await apiFetch('/api/Users', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password, role }),
+    });
+    if (response.ok) {
+      alert('Thêm người dùng thành công!');
+      fetchUsers(user.token);
+    } else {
+      const error = await response.json();
+      alert(`Thêm thất bại: ${error.message || 'Unknown error'}`);
     }
+  } catch (error) {
+    console.error('Error adding user:', error);
+    alert('Có lỗi xảy ra khi thêm người dùng.');
+  }
 }, [user?.token, fetchUsers]);
 
 
@@ -188,18 +193,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return;
     }
     try {
-        const response = await fetch(`/api/Users/${userId}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${user.token}`,
-            },
-        });
-        if (response.ok) {
-            alert('Xóa người dùng thành công!');
-            fetchUsers(user.token);
-        } else {
-            alert('Xóa thất bại.');
-        }
+    const { default: apiFetch } = await import('../utils/api');
+    const response = await apiFetch(`/api/Users/${userId}`, { method: 'DELETE' });
+    if (response.ok) {
+      alert('Xóa người dùng thành công!');
+      fetchUsers(user.token);
+    } else {
+      alert('Xóa thất bại.');
+    }
     } catch (error) {
         console.error('Error deleting user:', error);
         alert('Có lỗi xảy ra khi xóa người dùng.');
@@ -209,21 +210,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const updateUserRole = useCallback(async (userId: string, newRole: 'staff' | 'manager' | 'customer') => {
       if (!user?.token) return;
       try {
-        const response = await fetch(`/api/Users/${userId}/role`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${user.token}`,
-            },
-            body: JSON.stringify({ role: newRole }),
-        });
+    const { default: apiFetch } = await import('../utils/api');
+    const response = await apiFetch(`/api/Users/${userId}/role`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: newRole }),
+    });
 
-        if (response.ok) {
-            alert('Cập nhật vai trò thành công!');
-            fetchUsers(user.token);
-        } else {
-             alert('Cập nhật vai trò thất bại.');
-        }
+    if (response.ok) {
+      alert('Cập nhật vai trò thành công!');
+      fetchUsers(user.token);
+    } else {
+       alert('Cập nhật vai trò thất bại.');
+    }
       } catch (error) {
           console.error('Error updating user role:', error);
           alert('Có lỗi xảy ra.');
@@ -233,15 +232,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const updateUserPassword = useCallback(async (userId: string, newPassword: string) => {
     if (!user?.token) return false;
      try {
-        const response = await fetch(`/api/Users/${userId}/password`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${user.token}`,
-            },
-            body: JSON.stringify({ password: newPassword }),
-        });
-        return response.ok;
+    const { default: apiFetch } = await import('../utils/api');
+    const response = await apiFetch(`/api/Users/${userId}/password`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: newPassword }),
+    });
+    return response.ok;
       } catch (error) {
           console.error('Error updating password:', error);
           return false;

@@ -16,6 +16,25 @@ const formatPrice = (price: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
 };
 
+// Small voice toggle component used in admin header
+const VoiceToggle: React.FC = () => {
+    const [enabled, setEnabled] = React.useState<boolean>(() => {
+        try { return typeof window !== 'undefined' ? localStorage.getItem('voiceEnabled') === 'true' : false; } catch { return false; }
+    });
+    React.useEffect(() => {
+        try { localStorage.setItem('voiceEnabled', enabled ? 'true' : 'false'); } catch {}
+    }, [enabled]);
+    return (
+        <button onClick={() => setEnabled(v => !v)} className={`ml-2 px-4 py-2 rounded-3xl font-bold text-base shadow transition-all duration-300 border-2 focus:outline-none focus:ring-2 ${enabled ? 'bg-gradient-to-r from-green-400 to-green-600 text-white border-green-500' : 'bg-gray-100 text-gray-600 border-gray-300'}`}>
+            {enabled ? (
+                <span className="flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="white"><path d="M5 9v6h4l5 5V4l-5 5H5z" /></svg> Tắt giọng nói</span>
+            ) : (
+                <span className="flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="#888" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5L6 9H3v6h3l5 4V5z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19 5L5 19" /></svg> Bật giọng nói</span>
+            )}
+        </button>
+    );
+};
+
 // =================================================================================
 // Revenue & Sales Components
 // =================================================================================
@@ -40,13 +59,16 @@ const RevenueDashboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch('/api/Banking/get')
-            .then(res => res.json())
-            .then(data => {
-                setTransactions(data);
-                setLoading(false);
-            })
-            .catch(() => setLoading(false));
+        // dynamic import here to avoid circular dependency at module load
+        import('../utils/api').then(({ default: apiFetch }) => {
+            apiFetch('/api/Banking/get')
+                .then(res => res.ok ? res.json() : Promise.reject(res))
+                .then(data => {
+                    setTransactions(data);
+                    setLoading(false);
+                })
+                .catch(() => setLoading(false));
+        }).catch(() => setLoading(false));
     }, []);
 
     const now = new Date();
@@ -128,7 +150,7 @@ const RevenueDashboard: React.FC = () => {
                     <button onClick={() => setChartType('month')} className={`px-3 py-1 rounded ${chartType==='month'?'bg-orange-500 text-white':'bg-gray-200 text-gray-700'}`}>30 ngày</button>
                     <button onClick={() => setChartType('year')} className={`px-3 py-1 rounded ${chartType==='year'?'bg-orange-500 text-white':'bg-gray-200 text-gray-700'}`}>12 tháng</button>
                 </div>
-                <div style={{ width: '100%', maxWidth: 900 }}>
+                <div style={{ width: '100%' }}>
                     <RevenueChart data={{ labels: chartLabels, values: chartValues }} />
                 </div>
             </div>
@@ -190,15 +212,91 @@ const OrdersHistory: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedQuery, setDebouncedQuery] = useState('');
     const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
+        const [showExportOptions, setShowExportOptions] = useState(false);
+        const [isExporting, setIsExporting] = useState(false);
+
+                const exportOrders = async (days: number) => {
+                    setIsExporting(true);
+                    try {
+                        const now = new Date();
+                        const start = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+                        const filtered = orders.filter(o => new Date(getCreatedAt(o)) >= start);
+
+                        const logo = (window.location.origin || '') + '/logo4.png';
+
+                        const receipts = filtered.map((o, idx) => {
+                            const created = getCreatedAt(o);
+                            const createdText = created ? (new Date(created.replace(' ', 'T') + 'Z')).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : '-';
+                            const tx = getTransactionId(o);
+                            const id = o?.id ?? tx ?? `#${idx+1}`;
+                            const items = Array.isArray(o?.items) ? o.items : (Array.isArray(o?.orderItems) ? o.orderItems : []);
+                            const total = getTotalAmount(o) ?? items.reduce((s: number, it: any) => s + (Number(it?.price ?? 0) * Number(it?.quantity ?? 1)), 0);
+
+                            const itemsRows = items.map((it: any) => {
+                                const name = it?.name ?? it?.productName ?? '-';
+                                const qty = Number(it?.quantity ?? 1);
+                                const price = Number(it?.price ?? 0) * qty;
+                                return `<tr><td style="padding:6px;border:1px solid #eee">${escapeHtml(name)}</td><td style="padding:6px;border:1px solid #eee;text-align:center">${qty}</td><td style="padding:6px;border:1px solid #eee;text-align:right">${formatPrice(price)}</td></tr>`;
+                            }).join('');
+
+                            const html = `
+                                <div style="font-family: 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; color:#111; width:100%;max-width:480px;padding:12px;box-sizing:border-box;">
+                                    <div style="text-align:center;margin-bottom:8px;"><img src="${logo}" alt="logo" style="height:44px;object-fit:contain"/></div>
+                                    <h2 style="text-align:center;margin:8px 0 12px 0;font-weight:700;">Phiếu thanh toán</h2>
+                                    <div style="font-size:13px;margin-bottom:8px;">
+                                        <div>Thu ngân: ${escapeHtml(user?.email ?? user?.id ?? 'admin')}</div>
+                                        <div>Ngày tạo: ${escapeHtml(String(createdText))}</div>
+                                        <div>Mã đơn: ${escapeHtml(String(tx ?? id))}</div>
+                                    </div>
+                                    <div style="border:1px solid #eee;padding:0;border-radius:6px;overflow:hidden;margin-bottom:8px;">
+                                        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                                            <thead>
+                                                <tr style="background:#fafafa;color:#333;font-weight:600;">
+                                                    <th style="padding:8px;border:1px solid #eee;text-align:left">Tên</th>
+                                                    <th style="padding:8px;border:1px solid #eee;text-align:center">SL</th>
+                                                    <th style="padding:8px;border:1px solid #eee;text-align:right">Tiền</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${itemsRows}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div style="font-weight:700;font-size:15px;text-align:right;margin-bottom:6px;">Thành tiền: ${formatPrice(total)}</div>
+                                    <div style="text-align:center;font-size:11px;color:#888;margin-top:6px;">software by nightfood</div>
+                                </div>
+                            `;
+
+                            return { html };
+                        });
+
+                        // dynamic import to keep bundle small
+                        const { default: receiptsToPdf } = await import('../utils/pdfExport');
+                        const blob = await receiptsToPdf(receipts);
+                        const nowDate = new Date();
+                        const pad = (n: number) => String(n).padStart(2, '0');
+                        const dateStr = `${pad(nowDate.getDate())}_${pad(nowDate.getMonth()+1)}_${nowDate.getFullYear()}`;
+                        downloadBlob(blob, `orders-${days}d-${dateStr}.pdf`);
+                    } catch (err: any) {
+                        alert('Xuất lỗi: ' + (err?.message || 'Unknown'));
+                    } finally {
+                        setIsExporting(false);
+                    }
+                };
+
+
+                function escapeHtml(s: any) {
+                        if (s == null) return '';
+                        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                }
 
     useEffect(() => {
         const load = async () => {
             setLoading(true);
             setError(null);
             try {
-                const res = await fetch('/api/Orders', {
-                    headers: user?.token ? { 'Authorization': `Bearer ${user.token}` } : undefined,
-                });
+                const { default: apiFetch } = await import('../utils/api');
+                const res = await apiFetch('/api/Orders');
                 if (!res.ok) {
                     const text = await res.text();
                     throw new Error(text || `HTTP ${res.status}`);
@@ -305,6 +403,19 @@ const OrdersHistory: React.FC = () => {
         setShowReceipt(true);
     };
 
+    // Render the export-in-progress modal
+    const ExportingModal = () => {
+        if (!isExporting) return null;
+        return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                <div className="bg-white p-6 rounded-lg shadow-lg flex flex-col items-center gap-3">
+                    <div className="w-12 h-12 border-4 border-orange-400 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="text-gray-800 font-medium">Đang tạo file PDF...</div>
+                </div>
+            </div>
+        );
+    };
+
     const handleDelete = async (o: any) => {
         if (!canDelete) return;
         const id = o?.id;
@@ -346,16 +457,17 @@ const OrdersHistory: React.FC = () => {
 
     return (
         <div className="bg-white p-6 rounded-lg shadow-md animate-fade-in">
+            <ExportingModal />
             <div className="flex items-center justify-between mb-4 border-b pb-4">
                 <h2 className="text-xl font-bold text-gray-800">Lịch sử đơn hàng</h2>
-                <button
+                <div className="flex items-center gap-2">
+                    <button
                     onClick={async () => {
                         try {
                             setLoading(true);
                             setError(null);
-                            const res = await fetch('/api/Orders', {
-                                headers: user?.token ? { 'Authorization': `Bearer ${user.token}` } : undefined,
-                            });
+                            const { default: apiFetch } = await import('../utils/api');
+                            const res = await apiFetch('/api/Orders');
                             if (!res.ok) {
                                 const text = await res.text();
                                 throw new Error(text || `HTTP ${res.status}`);
@@ -372,6 +484,19 @@ const OrdersHistory: React.FC = () => {
                 >
                     Tải lại
                 </button>
+                    <div className="relative">
+                        <button onClick={() => setShowExportOptions(s => !s)} className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md">Xuất PDF</button>
+                        {showExportOptions && (
+                            <div className="absolute right-0 top-full mt-2 bg-white border rounded shadow-md py-2 w-36 z-50">
+                                <button onClick={() => { exportOrders(1); setShowExportOptions(false); }} className="block w-full text-left px-3 py-2 hover:bg-gray-100">1 ngày</button>
+                                <button onClick={() => { exportOrders(7); setShowExportOptions(false); }} className="block w-full text-left px-3 py-2 hover:bg-gray-100">7 ngày</button>
+                                <button onClick={() => { exportOrders(30); setShowExportOptions(false); }} className="block w-full text-left px-3 py-2 hover:bg-gray-100">30 ngày</button>
+                            </div>
+                        )}
+                    </div>
+                    {/* Voice toggle for admin */}
+                    <VoiceToggle />
+                </div>
             </div>
 
             {/* Search & Date filters */}
