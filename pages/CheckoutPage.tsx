@@ -122,6 +122,7 @@ const CheckoutPage: React.FC = () => {
         body: JSON.stringify({
           items: cartItems.map(item => ({ productId: item.id, quantity: item.quantity })),
           bankingTransactionId: transactionId,
+          ...(isCashPolling ? { description: 'Tiền mặt' } : {}),
         }),
       });
       try {
@@ -320,6 +321,7 @@ if (typeof window !== 'undefined' && !window.SpeechSDK) {
       body: JSON.stringify({
         amount: totalPrice,
         transactionId: transactionId,
+        description: 'Tiền Mặt',
       }),
     })
       .then(async (res) => {

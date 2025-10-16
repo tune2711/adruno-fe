@@ -392,12 +392,41 @@ const OrdersHistory: React.FC = () => {
         const total = getTotalAmount(o) ?? transformed.reduce((s: number, i: any) => s + i.price * i.quantity, 0);
         setReceiptTotal(total);
         // Lấy đúng chuỗi giờ VN đã hiển thị ngoài bảng
-        let createdText = '-';
-        const created = getCreatedAt(o);
-        if (created) {
-          const utcDate = typeof created === 'string' ? new Date(created.replace(' ', 'T') + 'Z') : new Date(created);
-          createdText = utcDate.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-        }
+                let createdText = '-';
+                const created = getCreatedAt(o);
+                if (created) {
+                    // robust parse and render with seconds in Vietnam timezone
+                    const safeParse = (s: any) => {
+                        if (!s) return null;
+                        if (s instanceof Date) return s;
+                        if (typeof s === 'number') return new Date(s);
+                        const str = String(s).trim();
+                        if (str.includes('T') || str.endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(str)) {
+                            const d = new Date(str);
+                            return isNaN(d.getTime()) ? null : d;
+                        }
+                        const m = str.match(/^(\d{2}):(\d{2}):(\d{2})\s+(\d{2})\/(\d{2})\/(\d{4})$/);
+                        if (m) return new Date(Number(m[6]), Number(m[5]) - 1, Number(m[4]), Number(m[1]), Number(m[2]), Number(m[3]));
+                        const d = new Date(str.replace(' ', 'T') + 'Z');
+                        return isNaN(d.getTime()) ? null : d;
+                    };
+                    const dt = safeParse(created);
+                    if (dt) {
+                        try {
+                            const parts = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Ho_Chi_Minh' }).formatToParts(dt);
+                            const get = (type: string) => parts.find(p => p.type === type)?.value ?? '';
+                            const day = get('day');
+                            const month = get('month');
+                            const year = get('year');
+                            const hour = get('hour');
+                            const minute = get('minute');
+                            const second = get('second');
+                            createdText = `${hour}:${minute}:${second} ${day}/${month}/${year}`;
+                        } catch (e) {
+                            createdText = dt.toLocaleString('vi-VN', { hour12: false, timeZone: 'Asia/Ho_Chi_Minh' });
+                        }
+                    }
+                }
         setReceiptCreatedAt(createdText);
         setReceiptTxId(getTransactionId(o));
         setShowReceipt(true);

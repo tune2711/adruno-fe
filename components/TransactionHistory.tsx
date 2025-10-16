@@ -1,6 +1,52 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import apiFetch from '../utils/api';
 
+// Local date parser (keeps parsing rules small and predictable)
+const parseServerDate = (created: any): Date | null => {
+    if (created == null) return null;
+    if (created instanceof Date) return created;
+    if (typeof created === 'number') return new Date(created);
+    const s = String(created).trim();
+    if (s.includes('T') || s.endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(s)) {
+        const d = new Date(s);
+        return isNaN(d.getTime()) ? null : d;
+    }
+    let d = new Date(s.replace(' ', 'T'));
+    if (!isNaN(d.getTime())) return d;
+    const timeThenDmy = s.match(/^(\d{2}):(\d{2}):(\d{2})\s+(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (timeThenDmy) {
+        const hour = Number(timeThenDmy[1]);
+        const minute = Number(timeThenDmy[2]);
+        const second = Number(timeThenDmy[3]);
+        const day = Number(timeThenDmy[4]);
+        const month = Number(timeThenDmy[5]);
+        const year = Number(timeThenDmy[6]);
+        const cd = new Date(year, month - 1, day, hour, minute, second);
+        return isNaN(cd.getTime()) ? null : cd;
+    }
+    const dmyThenTime = s.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/);
+    if (dmyThenTime) {
+        const day = Number(dmyThenTime[1]);
+        const month = Number(dmyThenTime[2]);
+        const year = Number(dmyThenTime[3]);
+        const hour = Number(dmyThenTime[4]);
+        const minute = Number(dmyThenTime[5]);
+        const second = Number(dmyThenTime[6]);
+        const cd = new Date(year, month - 1, day, hour, minute, second);
+        return isNaN(cd.getTime()) ? null : cd;
+    }
+    const dmyOnly = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (dmyOnly) {
+        const day = Number(dmyOnly[1]);
+        const month = Number(dmyOnly[2]);
+        const year = Number(dmyOnly[3]);
+        const cd = new Date(year, month - 1, day);
+        return isNaN(cd.getTime()) ? null : cd;
+    }
+    d = new Date(s.replace(' ', 'T') + 'Z');
+    return isNaN(d.getTime()) ? null : d;
+};
+
 // Define the transaction type
 interface Transaction {
     transactionId: string; 
@@ -83,22 +129,72 @@ const TransactionHistory: React.FC = () => {
         setLoading(true);
         setError(null);
         try {
-            const response = await apiFetch(`${API_BASE_URL}/get`, {
+            const { default: apiFetch } = await import('../utils/api');
+            // Fetch banking transactions
+            const resBank = await apiFetch(`${API_BASE_URL}/get`, {
                 method: 'GET',
                 headers: { 'Accept': 'application/json' },
                 cache: 'no-cache',
             });
-    
-            if (!response.ok) {
-                const errorText = await response.text();
-                let detailMessage = `Phản hồi từ máy chủ: ${errorText.substring(0, 300)}`;
-                if (errorText.trim().startsWith('<!DOCTYPE html>')) {
-                    detailMessage = "Máy chủ đã trả về một trang HTML thay vì dữ liệu JSON.";
-                }
-                throw new Error(`Lỗi HTTP: ${response.status} ${response.statusText}. ${detailMessage}`);
+            let bankData: any[] = [];
+            if (resBank.ok) {
+                try { bankData = await resBank.json(); } catch { bankData = []; }
             }
-            const data: Transaction[] = await response.json();
-            const sortedData = data.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+            // Fetch orders (we will merge orders that are not present in banking data)
+            let ordersData: any[] = [];
+            try {
+                const resOrders = await apiFetch('/api/Orders');
+                if (resOrders.ok) {
+                    const ord = await resOrders.json();
+                    ordersData = Array.isArray(ord) ? ord : (ord?.items ?? []);
+                }
+            } catch (e) {
+                ordersData = [];
+            }
+
+            // Convert orders into transaction-like objects
+            const ordersAsTx = ordersData.map((o: any) => ({
+                transactionId: (o?.bankingTransactionId || o?.transactionId || o?.id || o?.paymentCode || '').toString(),
+                amount: Number(o?.totalAmount ?? (Array.isArray(o?.items) ? o.items.reduce((s: number, it: any) => s + (Number(it?.price ?? 0) * Number(it?.quantity ?? 1)), 0) : 0)) || 0,
+                description: (Array.isArray(o?.items) ? o.items.map((it: any) => it?.name ?? it?.productName).join(', ') : o?.description ?? ''),
+                bank: o?.bank ?? o?.bankName ?? '-',
+                timestamp: o?.createdAt ?? o?.createdDate ?? o?.orderDate ?? o?.date ?? o?.timestamp ?? null,
+                userName: o?.userName || o?.createdBy || (o?.user?.email ?? '-') ,
+                __order: o,
+            }));
+
+            // Merge: start with bankData (if array), then append orders that are not represented in bankData
+            const bankList = Array.isArray(bankData) ? bankData.slice() : [];
+            const seenIds = new Set<string>();
+            // record transactionIds from bankList
+            bankList.forEach((b: any) => {
+                const id = (b?.transactionId || b?.bankingTransactionId || b?.id || b?.paymentCode || '').toString();
+                if (id) seenIds.add(id);
+            });
+
+            // for safer matching, also record timestamps (in ms) of bankList
+            const seenTimestamps = new Set<number>();
+            bankList.forEach((b: any) => {
+                const t = parseServerDate(b?.timestamp)?.getTime();
+                if (t) seenTimestamps.add(t);
+            });
+
+            // Append orders if not seen (match by id or by exact timestamp)
+            ordersAsTx.forEach((oTx: any) => {
+                const id = (oTx.transactionId || '').toString();
+                const t = parseServerDate(oTx.timestamp)?.getTime();
+                if ((id && seenIds.has(id)) || (t && seenTimestamps.has(t))) {
+                    return; // skip duplicate
+                }
+                bankList.push(oTx);
+            });
+
+            const sortedData = bankList.sort((a: any, b: any) => {
+                const da = parseServerDate(a?.timestamp)?.getTime() ?? 0;
+                const db = parseServerDate(b?.timestamp)?.getTime() ?? 0;
+                return db - da;
+            });
             setTransactions(sortedData);
         } catch (err: any) {
             let detailedError: FetchError = {
