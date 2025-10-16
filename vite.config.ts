@@ -1,14 +1,15 @@
+// vite.config.ts
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
-  // BE cho dev proxy (đổi bằng .env nếu cần)
-  const apiBase = env.VITE_API_BASE || 'http://localhost:5122'
+  // BE dev proxy
+  const apiBase = env.VITE_API_BASE || 'http://127.0.0.1:5122'
 
-  // Host public chạy qua Cloudflare/Nginx
-  const publicHost = (env.VITE_PUBLIC_HOST || 'pcsieure.click').replace(/^https?:\/\//, '')
+  // Host public qua Nginx/Cloudflare
+  const publicHost = (env.VITE_PUBLIC_HOST || 'nightfood.studio').replace(/^https?:\/\//, '')
   const baseHost = publicHost.replace(/^www\./, '')
   const allowedHosts = Array.from(new Set([
     publicHost, baseHost, `www.${baseHost}`, 'localhost', '127.0.0.1'
@@ -19,27 +20,34 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+
+    // DEV (npm run dev)
     server: {
       host: true,
       port: 5173,
       strictPort: true,
       allowedHosts,
       hmr: {
-        host: publicHost,          // ví dụ: pcsieure.click
+        host: publicHost,
         protocol: useHttps ? 'wss' : 'ws',
-        clientPort                 // 443 khi đi qua Cloudflare
+        clientPort
       },
       proxy: {
-        // FE gọi fetch('/api/...') -> dev proxy tới BE
         '/api': {
-          target: apiBase,         // mặc định http://localhost:5122
+          target: apiBase,
           changeOrigin: true,
           secure: false,
           headers: { 'ngrok-skip-browser-warning': 'true' },
-          // nếu BE KHÔNG có prefix /api thì mở dòng dưới:
-          // rewrite: (p) => p.replace(/^\/api/, ''),
+          // rewrite: (p) => p.replace(/^\/api/, ''), // nếu BE không dùng prefix /api
         },
       },
+    },
+
+    // PREVIEW (npm run preview) -> Nginx proxy :80 -> 127.0.0.1:4173
+    preview: {
+      host: true,
+      port: 4173,
+      allowedHosts,     // FIX lỗi “host is not allowed”
     },
   }
 })
